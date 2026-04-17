@@ -17,6 +17,7 @@ import org.lwjgl.BufferUtils;
 import static org.lwjgl.glfw.GLFW.*;
 import org.lwjgl.opengl.GL;
 import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.system.MemoryUtil.NULL;
 
 public class PythagorasBaumOpenGL {
 
@@ -25,9 +26,10 @@ public class PythagorasBaumOpenGL {
     private final int MAX_REKURSION = 10;
     private final float speed = 0.05f;
 
+    private long window;
     private float animationOffset = 0; // Taktgeber für die Farbe
     private float farbPhase = 0; // Taktgeber für die Farbe der alternativen Farb-Logik
-    private int frameCount = 0;
+    private int frameCount  = 0;
     private double lastTime = glfwGetTime();
     private float winkel = 45.0f; // Standardwert -> symmetrischer Baum
 
@@ -52,16 +54,18 @@ public class PythagorasBaumOpenGL {
         glMatrixMode(GL_MODELVIEW);
     }
 
-    public void run() {
+    private void init() {
         // Initialisierung von GLFW & Fenster
-        if (!glfwInit()) {
+        if ( !glfwInit() ) {
             throw new IllegalStateException("GLFW konnte nicht geladen werden");
         }
-
-        long window = glfwCreateWindow(800, 600, TITLE, 0, 0);
+        window = glfwCreateWindow(800, 600, TITLE, 0, 0);
+        if (window == NULL) {
+            throw new RuntimeException("Fenster konnte nicht erstellt werden");
+        }
         glfwMakeContextCurrent(window);
-        glfwSwapInterval(1); // Aktiviert V-Sync
-        GL.createCapabilities();
+        GL.createCapabilities(); // Verbindet LWJGL mit dem OpenGL-Kontext
+        glfwSwapInterval(1);     // Aktiviert V-Sync
         glShadeModel(GL_SMOOTH); // Erlaubt Farbverläufe
 
         // Callback für Kamera-Setup setzen
@@ -78,17 +82,19 @@ public class PythagorasBaumOpenGL {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE); // Additives Blending: Farben addieren sich bei Überlagerung
         glDisable(GL_DEPTH_TEST); // Wichtig für Glow: Objekte verdecken sich nicht
+    }
 
+    public void run() {
+        init();
 //      DoubleBuffer xBuffer = BufferUtils.createDoubleBuffer(1);
 
-        while (!glfwWindowShouldClose(window)) {
+        while ( !glfwWindowShouldClose( window )) {
+            // FPS ermitteln
             double currentTime = glfwGetTime();
             frameCount++;
-
             // Sobald eine Sekunde vergangen ist
             if (currentTime-lastTime >= 1.0) {
-                // FPS in den Titel schreiben
-                glfwSetWindowTitle(window, TITLE + " | FPS: " + frameCount);
+                glfwSetWindowTitle(window, TITLE + " | FPS: " + frameCount); // FPS in den Titel schreiben
                 frameCount = 0;
                 lastTime = currentTime;
             }
@@ -118,7 +124,7 @@ public class PythagorasBaumOpenGL {
                 baumY -= speed;
             }
 
-            // Gesamte Welt verschieben, bevor wir den Baum zeichnen
+            // Gesamte Welt verschieben, bevor der Baum gezeichnet wird
             glTranslatef(baumX, baumY, 0);
 
             // Zurücksetzen der Position mit der Taste 'R'
