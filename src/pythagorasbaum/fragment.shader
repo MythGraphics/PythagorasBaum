@@ -22,15 +22,15 @@ out vec4 FragColor;
 
 void main() {
     // Farben definieren
-    vec3 lightColor = vec3(1.0, 1.0, 1.0); // weiß
-    vec3 rootColor  = vec3(0.4, 0.2, 0.1); // braun
-    vec3 leafColor  = vec3(0.1, 0.8, 0.2); // grün
+    vec3 lightColor  = vec3(1.0, 1.0, 1.0); // weiß
+    vec3 groundColor = vec3(0.2, 0.2, 0.2); // dunkelgrau
+    vec3 rootColor   = vec3(0.4, 0.2, 0.1); // braun
+    vec3 leafColor   = vec3(0.1, 0.8, 0.2); // grün
     
-    // Grundfarbe basierend auf der Tiefe
+    // Grundfarben basierend auf der Tiefe
     vec3 baseColor;
     if (vDepth < 0.0) {
-        // Bodenfarbe (Dunkelgrau)
-        baseColor = vec3(0.2, 0.2, 0.2);
+        baseColor = groundColor;
     } else {
         float factor = clamp(vDepth / maxDepth, 0.0, 1.0);
         baseColor    = mix(leafColor, rootColor, factor);
@@ -52,7 +52,7 @@ void main() {
 
     // Specular: Glanzlicht
     float spec    = pow( max( dot( viewDir, reflectDir ), 0.0 ), material.shininess );
-    vec3 specular = (spec * material.specular); // unabhängig von baseColor (weiß)
+    vec3 specular = (spec * material.specular) * lightColor;
 
     // Finales Ergebnis: Farbe * Helligkeit
     vec3 result = ambient + diffuse + specular;

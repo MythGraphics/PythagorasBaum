@@ -364,7 +364,7 @@ public class PythagorasBaum3D {
             // Boden-Matrix erstellen und hinzufügen: flacher, großer Würfel
             Matrix4f groundMatrix = new Matrix4f()
                 .translate(0, -0.05f, 0) // knapp unter dem Nullpunkt
-                .scale(20.0f, 0.1f, 20.0f); // sehr breit und flach
+                .scale(20.0f, 0.05f, 20.0f); // sehr breit und flach
             instanceMatrices.add(groundMatrix);
             instanceDepths.add(-1.0f); // spezieller Tiefenwert für den Boden
 
@@ -374,10 +374,10 @@ public class PythagorasBaum3D {
             // Baum-Matrizen (instanceMatrices) berechnen
             generateTree(rootMatrix, maxDepth, time);
 
-            // Buffer zurücksetzen (Position auf 0)
+            // Buffer leeren und zurücksetzen (Position auf 0)
             matrixBuffer.clear();
 
-            // Matrix in den FloatBuffer für die GPU laden
+            // Matrix in den FloatBuffer (matrixBuffer) für die GPU laden
             for (int i = 0; i < instanceMatrices.size(); i++) {
                 Matrix4f mat = instanceMatrices.get(i);
                 float depthValue = instanceDepths.get(i);
@@ -453,18 +453,13 @@ public class PythagorasBaum3D {
 
             // Rotation um die Y-Achse (0, 90, 180, 270 Grad), um die 4 Seiten zu erreichen
             childMatrix.rotateY( (float) Math.toRadians( i * 90 ));
-
-            // Die Quaternion-Magie - Neigung nach außen
-//          Quaternionf tiltH = new Quaternionf().rotateX( (float) Math.toRadians( 45 ));
-//          Quaternionf tiltH = new Quaternionf().rotateX(windAngle);
-//          childMatrix.rotate(tiltH);
             childMatrix.rotateX(windAngle);
 
             // Skalieren und den neuen Würfel so verschieben, dass er auf der Kante aufsitzt
 //          childMatrix.scale(scaleFactor);
             childMatrix.scale(scaleFactor, 1.0f, scaleFactor); // nur X und Z skalieren
 
-            // den neuen Würfel so verschieben, dass seine UNTERSEITE (y=-0.5)
+            // den neuen Würfel so verschieben, dass seine Unterseite (y=-0.5)
             // exakt auf dem Drehpunkt liegt. Da er skaliert ist, ist das wieder 0.5
             childMatrix.translate(0, 0.5f, 0);
 
