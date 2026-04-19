@@ -18,7 +18,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import org.joml.Matrix4f;
-import org.joml.Quaternionf;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.Callbacks;
 import static org.lwjgl.glfw.GLFW.*;
@@ -36,13 +35,25 @@ public class PythagorasBaum3D {
 
     public enum Material {
         METALL (
-            new float[] {0.3f, 0.3f, 0.3f}, // Anteil r, g, b (1.0f == 100%)
-            new float[] {0.4f, 0.4f, 0.4f},
-            new float[] {1.0f, 1.0f, 1.0f},
-            64.0f
+            new float[] {0.25f, 0.25f, 0.25f}, // Anteil r, g, b (1.0f == 100%)
+            new float[] {0.3f, 0.3f, 0.3f},
+            new float[] {1.0f, 1.0f, 0.55f},
+            128.0f
+        ),
+        EMERALD (
+            new float[] {0.0215f, 0.1745f, 0.0215f},
+            new float[] {0.07568f, 0.61424f, 0.07568f},
+            new float[] {0.633f, 0.7278f, 0.633f},
+            0.6f*128.0f
+        ),
+        OBSIDIAN (
+            new float[] {0.05375f, 0.05f, 0.06625f},
+            new float[] {0.18275f, 0.17f, 0.22525f},
+            new float[] {0.332741f, 0.328634f, 0.346435f},
+            0.3f*128.0f
         ),
         WOOD (
-            new float[] {0.1f, 0.1f, 0.1f},
+            new float[] {0.2f, 0.2f, 0.2f},
             new float[] {0.6f, 0.6f, 0.6f},
             new float[] {0.05f, 0.05f, 0.05f},
             2.0f
@@ -51,7 +62,7 @@ public class PythagorasBaum3D {
             new float[] {0.2f, 0.2f, 0.2f},
             new float[] {1.0f, 1.0f, 1.0f},
             new float[] {0.8f, 0.8f, 0.8f},
-            32.0f
+            16.0f
         );
 
         final float[] ambient;
@@ -78,7 +89,8 @@ public class PythagorasBaum3D {
 
     private final List<Matrix4f> instanceMatrices = new ArrayList<>();
     private final List<Float> instanceDepths = new ArrayList<>();
-    private final int MAX_INSTANCES = 17*1000; // Kapazität Tiefe max. 7
+    private final int[] matAmbLoc = new int[2], matDiffLoc = new int[2], matSpecLoc = new int[2], matShinLoc = new int[2];
+    private final int MAX_INSTANCES = 17*1000; // Kapazität für max. Tiefe 7
     private final float moveSpeed = 0.05f;
     private final int maxDepth;
 
@@ -86,7 +98,6 @@ public class PythagorasBaum3D {
     private int vao; // Vertex Array Object (Positionen der Eckpunkte)
     private int instanceVbo, shaderProgram;
     private int projLoc, viewLoc, viewPosLoc, maxDepthLoc;
-    private int matAmbLoc, matDiffLoc, matSpecLoc, matShinLoc;
     private int frameCount = 0;
     private double lastTime = glfwGetTime();
     private FloatBuffer matrixBuffer;
@@ -103,7 +114,11 @@ public class PythagorasBaum3D {
     }
 
     public static void main(String[] args) {
-        new PythagorasBaum3D(3).run();
+        if ( args == null || args.length == 0 ) {
+            new PythagorasBaum3D(5).run();
+        } else {
+            new PythagorasBaum3D( Integer.parseInt( args[0] )).run();
+        }
     }
 
     private static String readFile(String filename) throws IOException {
@@ -234,7 +249,7 @@ public class PythagorasBaum3D {
     private void init() {
         // Initialisierung von GLFW & Fenster
         if ( !glfwInit() ) {
-            throw new IllegalStateException("GLFW konnte nicht geladen werden");
+            throw new IllegalStateException("GLFW konnte nicht geladen werden.");
         }
 
         // Konfiguriere das Fenster: OpenGL 3.3 Core Profile
@@ -250,7 +265,7 @@ public class PythagorasBaum3D {
 
         glfwSetFramebufferSizeCallback(window, (win, width, height) -> {
             glViewport(0, 0, width, height);
-            // Hier müsste die projection Matrix idealerweise neu berechnet werden
+            // hier müsste die Projektions-Matrix idealerweise neu berechnet werden
         });
 
         glfwMakeContextCurrent(window);
@@ -270,14 +285,18 @@ public class PythagorasBaum3D {
         setupMesh();
 
         // Locations abfragen
-        viewPosLoc  = glGetUniformLocation(shaderProgram, "viewPos");
-        projLoc     = glGetUniformLocation(shaderProgram, "projection");
-        viewLoc     = glGetUniformLocation(shaderProgram, "view");
-        maxDepthLoc = glGetUniformLocation(shaderProgram, "maxDepth");
-        matAmbLoc   = glGetUniformLocation(shaderProgram, "material.ambient");
-        matDiffLoc  = glGetUniformLocation(shaderProgram, "material.diffuse");
-        matSpecLoc  = glGetUniformLocation(shaderProgram, "material.specular");
-        matShinLoc  = glGetUniformLocation(shaderProgram, "material.shininess");
+        viewPosLoc    = glGetUniformLocation(shaderProgram, "viewPos");
+        projLoc       = glGetUniformLocation(shaderProgram, "projection");
+        viewLoc       = glGetUniformLocation(shaderProgram, "view");
+        maxDepthLoc   = glGetUniformLocation(shaderProgram, "maxDepth");
+        matAmbLoc [0] = glGetUniformLocation(shaderProgram, "material_base.ambient");
+        matDiffLoc[0] = glGetUniformLocation(shaderProgram, "material_base.diffuse");
+        matSpecLoc[0] = glGetUniformLocation(shaderProgram, "material_base.specular");
+        matShinLoc[0] = glGetUniformLocation(shaderProgram, "material_base.shininess");
+        matAmbLoc [1] = glGetUniformLocation(shaderProgram, "material_top.ambient");
+        matDiffLoc[1] = glGetUniformLocation(shaderProgram, "material_top.diffuse");
+        matSpecLoc[1] = glGetUniformLocation(shaderProgram, "material_top.specular");
+        matShinLoc[1] = glGetUniformLocation(shaderProgram, "material_top.shininess");
 
         // Einmalig das Programm aktivieren
         glUseProgram(shaderProgram);
@@ -359,11 +378,12 @@ public class PythagorasBaum3D {
             treeZ = Math.clamp(treeZ, -10.0f, 10.0f);
 
             instanceMatrices.clear();
-            Material.METALL.setMaterial(matAmbLoc, matDiffLoc, matSpecLoc, matShinLoc);
+            Material.WOOD.setMaterial(matAmbLoc[0], matDiffLoc[0], matSpecLoc[0], matShinLoc[0]);
+            Material.METALL.setMaterial(matAmbLoc[1], matDiffLoc[1], matSpecLoc[1], matShinLoc[1]);
 
             // Boden-Matrix erstellen und hinzufügen: flacher, großer Würfel
             Matrix4f groundMatrix = new Matrix4f()
-                .translate(0, -0.05f, 0) // knapp unter dem Nullpunkt
+                .translate(0, -0.5f, 0) // unter dem Nullpunkt, so dass der erste Würfel direkt aufsitzt
                 .scale(20.0f, 0.05f, 20.0f); // sehr breit und flach
             instanceMatrices.add(groundMatrix);
             instanceDepths.add(-1.0f); // spezieller Tiefenwert für den Boden
@@ -372,7 +392,7 @@ public class PythagorasBaum3D {
             Matrix4f rootMatrix = new Matrix4f()
                 .translate(treeX, treeY, treeZ);
             // Baum-Matrizen (instanceMatrices) berechnen
-            generateTree(rootMatrix, maxDepth, time);
+            generateTree3(rootMatrix, maxDepth, time);
 
             // Buffer leeren und zurücksetzen (Position auf 0)
             matrixBuffer.clear();
@@ -399,7 +419,7 @@ public class PythagorasBaum3D {
             glBufferSubData(GL_ARRAY_BUFFER, 0, matrixBuffer);
 
             // rendern
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear framebuffer
             glUseProgram(shaderProgram); // Shader starten
 
             // View (Orbit-Kamera)
@@ -408,10 +428,10 @@ public class PythagorasBaum3D {
             float radPitch = (float) Math.toRadians(pitch);
             // Sphärische Koordinaten Berechnung
             float camX = (float) (distance * Math.cos(radPitch) * Math.sin(radYrot));
-            float camY = (float) (distance * Math.sin(radPitch)) + 2.0f; // +2.0f um auf Baummitte zu schauen
+            float camY = (float) (distance * Math.sin(radPitch)) + 2.0f; // +2 als Offset-Kameraversatz -> Baummitte
             float camZ = (float) (distance * Math.cos(radPitch) * Math.cos(radYrot));
             // View-Matrix
-            Matrix4f view = new Matrix4f().lookAt(camX, camY, camZ, 0, 2, 0, 0, 1, 0);
+            Matrix4f view = new Matrix4f().lookAt(camX, camY, camZ, 0.0f, 2.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 
             // Uniforms senden
             glUniform1f(maxDepthLoc, maxDepth);
@@ -419,9 +439,9 @@ public class PythagorasBaum3D {
             glUniformMatrix4fv(projLoc, false, projection.get( singleMatrixBuffer ));
             glUniformMatrix4fv(viewLoc, false, view.get( singleMatrixBuffer ));
 
-            // VAO binden und Instanced Draw Call
+            // VAO (Vertex Array Object - Positionen der Eckpunkte) binden und Instanced Draw Call
             glBindVertexArray(vao);
-            glDrawElementsInstanced( GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0, instanceMatrices.size() );  // Instanced Rendering
+            glDrawElementsInstanced( GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0, instanceMatrices.size() ); // Instanced Rendering
 
             // Abschluss
             glfwSwapBuffers(window);
@@ -429,7 +449,7 @@ public class PythagorasBaum3D {
         }
     }
 
-    public void generateTree(Matrix4f parentMatrix, int depth, double time) {
+    private void generateTree(Matrix4f parentMatrix, int depth, double time) {
         if (depth == 0) {
             return;
         }
@@ -438,33 +458,138 @@ public class PythagorasBaum3D {
         instanceMatrices.add( new Matrix4f( parentMatrix ));
         instanceDepths.add( (float) depth );
 
-        // Parameter für die Kinder
-        float scaleFactor = 0.5f; // bei 4 Kindern füllen sie exakt die Fläche aus
+        float scaleFactor = 0.5f; // Die Kinder sind nur halb so groß
+
         // Animation: sanftes Schwingen: Sinus der Zeit: Basisneigung 45° + 5° Oszillation
         float windAngle = (float) Math.toRadians( 45 + Math.sin( time + depth ) * 5.0 );
 
-        // Wir erstellen 4 Kinder, die nach "außen" geneigt sind
+        // 4 Kinder-Würfel erstellen, die nach außen geneigt sind
         for (int i = 0; i < 4; i++) {
-            // Starte mit der Matrix des Elternteils
+            // Matrix des Elternwürfels
             Matrix4f childMatrix = new Matrix4f(parentMatrix);
 
-            // Zum oberen Ende des aktuellen Würfels schieben
-            childMatrix.translate(0, 0.5f, 0);
+            // zum oberen Ende des aktuellen Würfels schieben
+            childMatrix.translate(0.0f, 0.5f, 0.0f);
 
             // Rotation um die Y-Achse (0, 90, 180, 270 Grad), um die 4 Seiten zu erreichen
             childMatrix.rotateY( (float) Math.toRadians( i * 90 ));
             childMatrix.rotateX(windAngle);
 
-            // Skalieren und den neuen Würfel so verschieben, dass er auf der Kante aufsitzt
-//          childMatrix.scale(scaleFactor);
-            childMatrix.scale(scaleFactor, 1.0f, scaleFactor); // nur X und Z skalieren
+            // skalieren
+            childMatrix.scale(scaleFactor);
+//          childMatrix.scale(scaleFactor, scaleFactor * 1.5f, scaleFactor); // Länge der Würfel (y) um 50% erhöhen
 
-            // den neuen Würfel so verschieben, dass seine Unterseite (y=-0.5)
-            // exakt auf dem Drehpunkt liegt. Da er skaliert ist, ist das wieder 0.5
-            childMatrix.translate(0, 0.5f, 0);
+            /* den neuen Würfel so verschieben, dass seine Unterseite (y=-0.5)
+             * exakt auf dem Drehpunkt liegt. Da er skaliert ist, ist das wieder 0.5 */
+            childMatrix.translate(0.0f, 0.5f, 0.0f);
 
             // Rekursion
             generateTree(childMatrix, depth-1, time);
+        }
+    }
+
+    private void generateTree2(Matrix4f parentMatrix, int depth, double time) {
+        if (depth == 0) {
+            return;
+        }
+
+        // aktuelle Matrix zur Liste hinzufügen
+        instanceMatrices.add( new Matrix4f( parentMatrix ));
+        instanceDepths.add( (float) depth );
+
+        // Abbruchbedingung für die Zweige
+        if (depth <= 1) {
+            return;
+        }
+
+        float scale = 0.5f; // Die Kinder sind nur halb so groß
+        // Animation: sanftes Schwingen: Sinus der Zeit: Basisneigung 45° + 5° Oszillation
+        float angle = (float) Math.toRadians( 45 + Math.sin( time + depth ) * 5.0 );
+
+        // Wir erstellen 4 Kinder an den 4 Oberkanten
+        for (int i = 0; i < 4; i++) {
+            Matrix4f childMatrix = new Matrix4f(parentMatrix);
+
+            // zur jeweiligen Oberkante des Elternwürfels gehen
+            switch (i) {
+                case 0: // rechts
+                    childMatrix.translate(0.5f, 0.5f, 0.0f);
+                    childMatrix.rotateZ(-angle); // Nach rechts außen knicken
+                    break;
+                case 1: // links
+                    childMatrix.translate(-0.5f, 0.5f, 0.0f);
+                    childMatrix.rotateZ(angle); // Nach links außen knicken
+                    break;
+                case 2: // vorne
+                    childMatrix.translate(0.0f, 0.5f, 0.5f);
+                    childMatrix.rotateX(angle); // Nach vorne außen knicken
+                    break;
+                case 3: // hinten
+                    childMatrix.translate(0.0f, 0.5f, -0.5f);
+                    childMatrix.rotateX(-angle); // Nach hinten außen knicken
+                    break;
+            }
+
+            // Skalierung
+            childMatrix.scale(scale);
+
+            /* Kind-Würfel so verschieben, dass er mit seiner Unterkante
+             * am Pivot-Punkt ansetzt (da er von -0.5 bis 0.5 geht, muss er um 0.5 hoch) */
+            childMatrix.translate(0.0f, 0.5f, 0.0f);
+
+            // Rekursion
+            generateTree2(childMatrix, depth-1, time);
+        }
+    }
+
+    private void generateTree3(Matrix4f parentMatrix, int depth, double time) {
+        if (depth == 0) {
+            return;
+        }
+
+        // aktuelle Matrix zur Liste hinzufügen
+        instanceMatrices.add( new Matrix4f( parentMatrix ));
+        instanceDepths.add( (float) depth );
+
+        if (depth <= 1) {
+            return;
+        }
+
+        float scale = 0.5f;
+        // Animation: sanftes Schwingen: Sinus der Zeit: Basisneigung 45° + 5° Oszillation
+        float angle = (float) Math.toRadians( 45 + Math.sin( time + depth * 1.5f ) * 5.0f );
+
+        for (int i = 0; i < 4; i++) {
+            Matrix4f childMatrix = new Matrix4f(parentMatrix);
+
+            switch (i) {
+                case 0: // rechts
+                    childMatrix.translate(0.5f, 0.5f, 0.0f);    // Zur rechten Oberkante des Vaters
+                    childMatrix.rotateZ(-angle);                // Scharnier-Rotation
+                    childMatrix.translate(-0.25f, 0.25f, 0.0f); // eigene rechte Kante zum Pivot
+                    break;
+                case 1: // links
+                    childMatrix.translate(-0.5f, 0.5f, 0.0f);   // zur linken Oberkante des Vaters
+                    childMatrix.rotateZ(angle);
+                    childMatrix.translate(0.25f, 0.25f, 0.0f);  // eigene linke Kante zum Pivot
+                    break;
+                case 2: // vorne
+                    childMatrix.translate(0.0f, 0.5f, 0.5f);    // zur vorderen Oberkante
+                    childMatrix.rotateX(angle);
+                    childMatrix.translate(0.0f, 0.25f, -0.25f); // eigene vordere Kante zum Pivot
+                    break;
+                case 3: // hinten
+                    childMatrix.translate(0.0f, 0.5f, -0.5f);   // zur hinteren Oberkante
+                    childMatrix.rotateX(-angle);
+                    childMatrix.translate(0.0f, 0.25f, 0.25f);  // eigene hintere Kante zum Pivot
+                    break;
+            }
+
+            // Skalierung
+            childMatrix.scale(scale);
+
+            // Rekursion
+            generateTree3(childMatrix, depth-1, time);
         }
     }
 

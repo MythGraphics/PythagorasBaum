@@ -14,7 +14,7 @@ package pythagorasbaum;
 public class Main {
 
     public final static String NAME    = "MythGraphics Pythagoras Baum";
-    public final static String VERSION = "0.0.0";
+    public final static String VERSION = "3.0.0";
 
     public static void main(String[] args) {
         new Main(args);
@@ -33,6 +33,9 @@ public class Main {
         else if ( args[0].equalsIgnoreCase( "--opengl" )) {
             PythagorasBaumOpenGL.main(null);
         }
+        else if ( args[0].equalsIgnoreCase( "--opengl3d" )) {
+            PythagorasBaum3D.main(null);
+        }
         else {
             System.err.println("Parameter \"" + args[0] + "\" unbekannt");
             System.err.println();
@@ -42,8 +45,9 @@ public class Main {
 
     private static void printHelp() {
         System.out.println("Parameter:");
-        System.out.println("  --j2d         nutzt die Java2D API");
-        System.out.println("  --opengl      nutzt die OpenGL API");
+        System.out.println("  --j2d         nutzt Java2D API");
+        System.out.println("  --opengl      nutzt OpenGL API");
+        System.out.println("  --opengl3d    3D via OpenGL");
         System.out.println("  --help        zeigt diese Hilfe an");
         System.out.println("  --version     zeigt Programm-Version an");
         System.out.println();
