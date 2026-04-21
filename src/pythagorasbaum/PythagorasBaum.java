@@ -53,7 +53,7 @@ public class PythagorasBaum extends JPanel {
      * @return phi Winkel Phi in Grad (Winkel zwischen Hypothenuse und rechter Kathete)
      */
     public double getPhi() {
-        return Math.toDegrees( Math.atan(tanphi) );
+        return Math.toDegrees( Math.atan( tanphi ));
     }
 
     @Override

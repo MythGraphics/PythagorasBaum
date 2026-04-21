@@ -9,20 +9,32 @@ layout (location = 6) in float aDepth;
 
 uniform mat4 projection;
 uniform mat4 view;
+uniform mat4 uGroundMatrix;       // Matrix für den Boden
+uniform mat3 uGroundNormalMatrix; // Normalen-Matrix des Bodens
 
 out float vDepth;
 out vec3 vNormal;
 out vec3 vFragPos; // Position des Pixels in der Welt
 
 void main() {
+    mat4 model;
+    mat3 normalMat;
+    vDepth = aDepth;
+    // wenn aDepth negativ, Boden zeichnen
+    if (aDepth < 0.0) {
+        model = uGroundMatrix;
+        normalMat = uGroundNormalMatrix;
+    } else {
+        model = instanceMatrix;
+        normalMat = mat3(model);
+    }
+
     // Berechnung der Position des Eckpunktes in der Welt
-    vec4 worldPos = instanceMatrix * vec4(aPos, 1.0);
+    vec4 worldPos = model * vec4(aPos, 1.0);
     vFragPos = worldPos.xyz;
 
     // Normale muss in Welt-Koordinaten rotiert werden
-    // mat3, um nur die Rotation der Instanz zu übernehmen
-    vNormal = mat3(instanceMatrix) * aNormal;
-    vDepth = aDepth;
+    vNormal = normalMat * aNormal;
 
     gl_Position = projection * view * worldPos;
 }

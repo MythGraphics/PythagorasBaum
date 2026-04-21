@@ -102,37 +102,28 @@ public class PythagorasBaumOpenGL {
             glClear(GL_COLOR_BUFFER_BIT);
             glLoadIdentity();
 
-            // Zoom-Steuerung
-            if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+            // Tastatur-Steuerung
+            if ( glfwGetKey( window, GLFW_KEY_W     ) == GLFW_PRESS ) {
                 zoom *= 1.01f; // 1% vergrößern pro Frame
             }
-            if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+            if ( glfwGetKey( window, GLFW_KEY_S     ) == GLFW_PRESS ) {
                 zoom /= 1.01f; // 1% verkleinern pro Frame
             }
-
-            // Tastatur-Abfrage für Bewegungs-Steuerung
-            if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
-                baumX -= speed;
-            }
-            if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
-                baumX += speed;
-            }
-            if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
-                baumY += speed;
-            }
-            if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
-                baumY -= speed;
-            }
-
-            // Gesamte Welt verschieben, bevor der Baum gezeichnet wird
-            glTranslatef(baumX, baumY, 0);
-
-            // Zurücksetzen der Position mit der Taste 'R'
-            if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
+            if ( glfwGetKey( window, GLFW_KEY_LEFT  ) == GLFW_PRESS ) { baumX -= speed; }
+            if ( glfwGetKey( window, GLFW_KEY_RIGHT ) == GLFW_PRESS ) { baumX += speed; }
+            if ( glfwGetKey( window, GLFW_KEY_UP    ) == GLFW_PRESS ) { baumY += speed; }
+            if ( glfwGetKey( window, GLFW_KEY_DOWN  ) == GLFW_PRESS ) { baumY -= speed; }
+            if ( glfwGetKey( window, GLFW_KEY_A     ) == GLFW_PRESS ) { winkel += 0.2f; }
+            if ( glfwGetKey( window, GLFW_KEY_D     ) == GLFW_PRESS ) { winkel -= 0.2f; }
+            // Zurücksetzen
+            if ( glfwGetKey( window, GLFW_KEY_R     ) == GLFW_PRESS ) {
                 baumX = 0;
                 baumY = -1.0f;
                 zoom  = 1.0f;
             }
+
+            // Gesamte Welt verschieben, bevor der Baum gezeichnet wird
+            glTranslatef(baumX, baumY, 0);
 
             // Transformationen anwenden
             // WICHTIG: Die Reihenfolge bestimmt, ob wir um das Zentrum oder den Ursprung zoomen
@@ -148,23 +139,15 @@ public class PythagorasBaumOpenGL {
             // Mappe X-Position (0 bis Fensterbreite) auf Winkel (10 bis 80 Grad) für MausWinkel
             winkel = (float) (10 + (xPos / width[0]) * 70);
  */
-            // Tastatur-Abfrage für Winkel-Steuerung (Baum-Neigung)
-            if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-                winkel += 0.2f;
-            }
-            if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-                winkel -= 0.2f;
-            }
-
             // Wind-Effekt
-            float wind = (float) Math.sin(animationOffset * 1.5f) * 5.0f; // 5° Schwankung
+            float wind = (float) Math.sin(animationOffset * 1.5f) * 5.0f; // 5° Oszillation
 
             // Geschwindigkeit des Farbwechsels
             animationOffset += 0.01f;
             farbPhase += 0.01f;
 
             // Baum zeichnen
-            drawTree(0.6f, 0, winkel+wind);
+            drawTree(0.6f, 0, winkel + wind);
 
             glfwSwapBuffers(window);
             glfwPollEvents();
@@ -181,13 +164,13 @@ public class PythagorasBaumOpenGL {
          * HSB-Modus: Der Farbton (Hue) wandert mit der Zeit und der Ebene
          * Berechne den Farbton basierend auf Zeit (offset) und der Baum-Tiefe (ebene)
          */
-        float hue = (animationOffset + (ebene * 0.05f)) % 1.0f;
+        float hue = ( animationOffset + ( ebene * 0.05f )) % 1.0f;
         int rgb = Color.HSBtoRGB(hue, 0.8f, 1.0f);
 
         // RGB-Werte aus dem Integer extrahieren
         float r = ((rgb >> 16) & 0xFF) / 255.0f;
-        float g = ((rgb >> 8) & 0xFF) / 255.0f;
-        float b = (rgb & 0xFF) / 255.0f;
+        float g = ((rgb >>  8) & 0xFF) / 255.0f;
+        float b = ( rgb & 0xFF)        / 255.0f;
  /*
         // alternative Farb-Logik (manuell ohne java.awt)
         // Wir nutzen Sinus-Wellen für R, G und B, die leicht phasenverschoben sind
@@ -196,20 +179,20 @@ public class PythagorasBaumOpenGL {
         float b = (float) Math.sin(farbPhase + ebene * 0.3f + 4.0f) * 0.5f + 0.5f;
  */
         // Farbe setzen
-        glColor4f(r, g, b, 0.4f);
+        glColor4f(r, g, b, 0.4f); // 40% Opazität
 
         // Zeichen des aktuellen Quadrats
         glBegin(GL_QUADS);
-            glVertex2f(-size / 2, 0);
-            glVertex2f(size / 2, 0);
-            glVertex2f(size / 2, size);
-            glVertex2f(-size / 2, size);
+            glVertex2f(-size/2, 0);
+            glVertex2f( size/2, 0);
+            glVertex2f( size/2, size);
+            glVertex2f(-size/2, size);
         glEnd();
 
         // Geometrie berechnen (Trigonometrie am rechtwinkligen Dreieck)
-        float winkelBeta = 90 - winkelAlpha;
-        float neueSizeLinks = size * (float) Math.cos(Math.toRadians(winkelAlpha));
-        float neueSizeRechts = size * (float) Math.sin(Math.toRadians(winkelAlpha));
+        float winkelBeta     = 90 - winkelAlpha;
+        float neueSizeLinks  = size * (float) Math.cos( Math.toRadians( winkelAlpha ));
+        float neueSizeRechts = size * (float) Math.sin( Math.toRadians( winkelAlpha ));
 
         // Verschiebe den Ursprung auf die Oberkante des Quadrats
         glTranslatef(0, size, 0);

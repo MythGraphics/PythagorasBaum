@@ -11,12 +11,14 @@ package pythagorasbaum;
  *
  */
 
+import java.util.Arrays;
 import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.Callbacks;
@@ -83,6 +85,7 @@ public class PythagorasBaum3D {
             glUniform3f(matSpecLoc, specular[0], specular[1], specular[2]);
             glUniform1f(matShinLoc, shininess);
         }
+
     }
 
     private final static String TITLE = "Pythagoras-Baum 3D (OpenGL)";
@@ -95,9 +98,10 @@ public class PythagorasBaum3D {
     private final int maxDepth;
 
     private long window;
-    private int vao; // Vertex Array Object (Positionen der Eckpunkte)
-    private int instanceVbo, shaderProgram;
-    private int projLoc, viewLoc, viewPosLoc, maxDepthLoc;
+    private int vao, bgVao, groundVao; // Vertex Array Object (Positionen der Eckpunkte)
+    private int instanceVbo;
+    private int treeShaderProgram, bgShaderProgram;
+    private int projLoc, viewLoc, viewPosLoc, maxDepthLoc, groundLoc, normalGroundLoc;
     private int frameCount = 0;
     private double lastTime = glfwGetTime();
     private FloatBuffer matrixBuffer;
@@ -174,15 +178,34 @@ public class PythagorasBaum3D {
         };
         // 12 Dreiecke (2 pro Würfelseite)
         int[] indices = {
-            0,  1,  2,   2,  3,  0, // Vorne
-            4,  5,  6,   6,  7,  4, // Hinten
-            8,  9, 10,  10, 11,  8, // Oben
-           12, 13, 14,  14, 15, 12, // Unten
-           16, 17, 18,  18, 19, 16, // Rechts
-           20, 21, 22,  22, 23, 20  // Links
-       };
+             0,  1,  2,   2,  3,  0, // Vorne
+             4,  5,  6,   6,  7,  4, // Hinten
+             8,  9, 10,  10, 11,  8, // Oben
+            12, 13, 14,  14, 15, 12, // Unten
+            16, 17, 18,  18, 19, 16, // Rechts
+            20, 21, 22,  22, 23, 20  // Links
+        };
+        float[] bgQuadVertices = {
+            -1.0f,  1.0f,
+            -1.0f, -1.0f,
+             1.0f, -1.0f,
+             1.0f,  1.0f
+        };
 
-        // OpenGL sagen, dass die Matrix-Daten im zweiten Buffer pro Instanz (also pro Ast) gelesen werden sollen, nicht pro Eckpunkt
+        // --- Setup Hintergrund ---
+        bgVao = glGenVertexArrays();
+        int bgVbo = glGenBuffers();
+
+        glBindVertexArray(bgVao);
+        glBindBuffer(GL_ARRAY_BUFFER, bgVbo);
+        glBufferData(GL_ARRAY_BUFFER, bgQuadVertices, GL_STATIC_DRAW);
+
+        // BG: nur ein Attribut: Position (Location 0 im Shader)
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0);
+        glBindVertexArray(0); // entbinden
+
+        // --- Setup Baum ---
         vao = glGenVertexArrays();
         glBindVertexArray(vao);
 
@@ -191,17 +214,17 @@ public class PythagorasBaum3D {
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
         glBufferData(GL_ARRAY_BUFFER, vertices, GL_STATIC_DRAW);
 
+        glEnableVertexAttribArray(0);
         int stride = 6 * Float.BYTES; // 3 Pos + 3 Normale
         // Position: Location 0: im Shader: vec3 aPos
-        glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, false, stride, 0);
         // Normale: Location 5
         glEnableVertexAttribArray(5);
         glVertexAttribPointer(5, 3, GL_FLOAT, false, stride, 3 * Float.BYTES);
 
         // EBO für die Indices (Element Buffer Object): Die Reihenfolge, in der die Ecken zu Dreiecken verbunden werden (Indices) -> Verbindungs-Logik
-        int eboId = glGenBuffers();
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboId);
+        int ebo = glGenBuffers();
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices, GL_STATIC_DRAW);
 
         // VBO (Vertex Buffer Object) für die Instanz-Matrizen (Location 1-4)
@@ -212,9 +235,22 @@ public class PythagorasBaum3D {
         glBufferData(GL_ARRAY_BUFFER, MAX_INSTANCES * 17 * Float.BYTES, GL_DYNAMIC_DRAW);
 
         setupInstanceAttributes();
+        glBindVertexArray(0); // entbinden
 
-        // alles entbinden (Sicherheitshalber)
-        glBindVertexArray(0);
+        // --- Setup Bodenplatte ---
+        groundVao = glGenVertexArrays();
+        glBindVertexArray(groundVao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo); // das existierende Baum-VBO nutzen
+        glBufferData(GL_ARRAY_BUFFER, vertices, GL_STATIC_DRAW);
+        // Das EBO (Indices) vom Baum auch hier binden. Es definiert ja nur, welche Punkte zu Dreiecken verbunden werden.
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+        // Position
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, false, stride, 0);
+        // Normale
+        glEnableVertexAttribArray(5);
+        glVertexAttribPointer(5, 3, GL_FLOAT, false, stride, 3 * Float.BYTES);
+        glBindVertexArray(0); // entbinden
     }
 
     private void setupInstanceAttributes() {
@@ -276,7 +312,8 @@ public class PythagorasBaum3D {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
         try {
-            shaderProgram = createShaderProgram( readFile( "vertex.shader" ), readFile( "fragment.shader" ));
+            treeShaderProgram = createShaderProgram( readFile( "tree-vertex.shader" ), readFile( "tree-fragment.shader" ));
+            bgShaderProgram   = createShaderProgram( readFile( "bg-vertex.shader" ), readFile( "bg-fragment.shader" ));
         } catch (IOException e) {
             throw new RuntimeException( "Lesen der Shader-Dateien fehlgeschlagen: " + e.getMessage() );
         }
@@ -285,21 +322,22 @@ public class PythagorasBaum3D {
         setupMesh();
 
         // Locations abfragen
-        viewPosLoc    = glGetUniformLocation(shaderProgram, "viewPos");
-        projLoc       = glGetUniformLocation(shaderProgram, "projection");
-        viewLoc       = glGetUniformLocation(shaderProgram, "view");
-        maxDepthLoc   = glGetUniformLocation(shaderProgram, "maxDepth");
-        matAmbLoc [0] = glGetUniformLocation(shaderProgram, "material_base.ambient");
-        matDiffLoc[0] = glGetUniformLocation(shaderProgram, "material_base.diffuse");
-        matSpecLoc[0] = glGetUniformLocation(shaderProgram, "material_base.specular");
-        matShinLoc[0] = glGetUniformLocation(shaderProgram, "material_base.shininess");
-        matAmbLoc [1] = glGetUniformLocation(shaderProgram, "material_top.ambient");
-        matDiffLoc[1] = glGetUniformLocation(shaderProgram, "material_top.diffuse");
-        matSpecLoc[1] = glGetUniformLocation(shaderProgram, "material_top.specular");
-        matShinLoc[1] = glGetUniformLocation(shaderProgram, "material_top.shininess");
+        viewPosLoc    = glGetUniformLocation(treeShaderProgram, "viewPos");
+        projLoc       = glGetUniformLocation(treeShaderProgram, "projection");
+        viewLoc       = glGetUniformLocation(treeShaderProgram, "view");
+        maxDepthLoc   = glGetUniformLocation(treeShaderProgram, "maxDepth");
+        matAmbLoc [0] = glGetUniformLocation(treeShaderProgram, "material_base.ambient");
+        matDiffLoc[0] = glGetUniformLocation(treeShaderProgram, "material_base.diffuse");
+        matSpecLoc[0] = glGetUniformLocation(treeShaderProgram, "material_base.specular");
+        matShinLoc[0] = glGetUniformLocation(treeShaderProgram, "material_base.shininess");
+        matAmbLoc [1] = glGetUniformLocation(treeShaderProgram, "material_top.ambient");
+        matDiffLoc[1] = glGetUniformLocation(treeShaderProgram, "material_top.diffuse");
+        matSpecLoc[1] = glGetUniformLocation(treeShaderProgram, "material_top.specular");
+        matShinLoc[1] = glGetUniformLocation(treeShaderProgram, "material_top.shininess");
 
         // Einmalig das Programm aktivieren
-        glUseProgram(shaderProgram);
+        glUseProgram(bgShaderProgram);
+        glUseProgram(treeShaderProgram);
     }
 
     private void checkShaderError(int shaderId) {
@@ -332,6 +370,64 @@ public class PythagorasBaum3D {
         glDeleteShader(fragmentShader);
 
         return program;
+    }
+
+    public final static Matrix3f getNormalMatrix(Matrix4f modelMatrix, Matrix3f dest) {
+        Matrix4f nMatrix = new Matrix4f(modelMatrix);
+        nMatrix.invert().transpose();
+        return nMatrix.get3x3(dest); // Extrahiert den Rotations/Skalierungs-Teil
+    }
+
+    private void drawBG() {
+        glUseProgram(bgShaderProgram);
+        glDisable(GL_DEPTH_TEST); // Tiefentest aus, damit es immer im Hintergrund ist
+        glBindVertexArray(bgVao);
+        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+        glEnable(GL_DEPTH_TEST);  // Tiefentest wieder an für den Rest
+    }
+
+    private void drawGroundPlate() {
+        // Deaktiviere das Lesen aus dem VBO für Location 6, damit glVertexAttrib1f überhaupt Priorität bekommt
+        /* Wenn ein Vertex-Attribut-Array aktiviert ist (glEnableVertexAttribArray),
+         * zieht OpenGL die Daten immer aus dem Puffer (deinem matrixBuffer mit der Tiefe).
+         * Der Befehl glVertexAttrib1f wird dann schlicht ignoriert.
+         * Indem man es für den Boden ausschaltest, "hört" der Shader auf den festen Wert -1.0f.
+         */
+        glDisableVertexAttribArray(6); // schalten das Attribut-Array aus, damit glVertexAttrib1f Priorität hat
+        glEnable(GL_BLEND); // Blending einschalten
+        glDepthMask(false); // Baum durch den Boden sichtbar
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Misch-Formel festlegen (Standard für Transparenz)
+
+        glBindVertexArray(groundVao); // kennt nur Positionen & Normalen
+
+        // Matrizen vorbereiten
+        Matrix4f groundMatrix = new Matrix4f()
+            .translate(0, -0.5f, 0) // unter dem Nullpunkt, so dass der erste Würfel direkt aufsitzt
+            .scale(20.0f, 0.05f, 20.0f); // sehr breit und flach
+        // Normalenmatrix berechnen: Inverse -> Transponierte -> zu mat3 konvertieren
+        Matrix3f normalMatrix = getNormalMatrix( groundMatrix, new Matrix3f() );
+
+        // Matrix als Uniform an den Shader senden
+        groundLoc = glGetUniformLocation(treeShaderProgram, "uGroundMatrix");
+        float[] buffer = new float[16];
+        glUniformMatrix4fv( groundLoc, false, groundMatrix.get( buffer ));
+
+        // Normalen-Matrix als Uniform an den Shader senden
+        normalGroundLoc = glGetUniformLocation(treeShaderProgram, "uGroundNormalMatrix");
+        float[] normalBuffer = new float[9];
+        glUniformMatrix3fv(normalGroundLoc, false, normalMatrix.get( normalBuffer ));
+
+        // Shader mitteilen, dass dies der Boden ist
+        // Da wir keine Instanz-Daten nutzen, setzen wir ein generisches Attribut für aDepth (-1.0f)
+        glVertexAttrib1f(6, -1.0f);
+
+        // rendern (da wir das EBO im groundVao gebunden haben, glDrawElements)
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+
+        // aufräumen (Zustand für den nächsten Frame zurücksetzen)
+        glDepthMask(true);
+        glDisable(GL_BLEND); // Blending wieder ausschalten
+        glBindVertexArray(0);
     }
 
     private void loop() {
@@ -370,23 +466,15 @@ public class PythagorasBaum3D {
                 glfwGetKey(window, GLFW_KEY_EQUAL)       == GLFW_PRESS) { treeZ += moveSpeed; }
             if (glfwGetKey(window, GLFW_KEY_KP_SUBTRACT) == GLFW_PRESS ||
                 glfwGetKey(window, GLFW_KEY_MINUS)       == GLFW_PRESS) { treeZ -= moveSpeed; }
-            // Reset
+            // Zurücksetzen
             if (glfwGetKey(window, GLFW_KEY_HOME) == GLFW_PRESS) { resetPos(); }
+            if (glfwGetKey(window, GLFW_KEY_R)    == GLFW_PRESS) { resetPos(); }
             // Translation begrenzen
             treeY = Math.clamp(treeY, -10.0f, 10.0f);
             treeX = Math.clamp(treeX, -10.0f, 10.0f);
             treeZ = Math.clamp(treeZ, -10.0f, 10.0f);
 
             instanceMatrices.clear();
-            Material.WOOD.setMaterial(matAmbLoc[0], matDiffLoc[0], matSpecLoc[0], matShinLoc[0]);
-            Material.METALL.setMaterial(matAmbLoc[1], matDiffLoc[1], matSpecLoc[1], matShinLoc[1]);
-
-            // Boden-Matrix erstellen und hinzufügen: flacher, großer Würfel
-            Matrix4f groundMatrix = new Matrix4f()
-                .translate(0, -0.5f, 0) // unter dem Nullpunkt, so dass der erste Würfel direkt aufsitzt
-                .scale(20.0f, 0.05f, 20.0f); // sehr breit und flach
-            instanceMatrices.add(groundMatrix);
-            instanceDepths.add(-1.0f); // spezieller Tiefenwert für den Boden
 
             // Wurzel-Matrix mit der Verschiebung erstellen
             Matrix4f rootMatrix = new Matrix4f()
@@ -406,7 +494,7 @@ public class PythagorasBaum3D {
                 matrixBuffer.put(depthValue); // 17. Wert: Tiefe
                 // sicherstellen, dass wir nicht über die Kapazität hinausschießen
                 if ( matrixBuffer.position() >= matrixBuffer.capacity() ) {
-                    System.err.println("matrixBuffer überschreitet Kapazitätsgrenze!");
+                    System.err.println("MatrixBuffer überschreitet Kapazitätsgrenze!");
                     break;
                 }
             }
@@ -417,10 +505,6 @@ public class PythagorasBaum3D {
             glBindBuffer(GL_ARRAY_BUFFER, instanceVbo);
             // glBufferSubData, da die Größe des Buffers auf der GPU (glBufferData in init) bereits feststeht.
             glBufferSubData(GL_ARRAY_BUFFER, 0, matrixBuffer);
-
-            // rendern
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear framebuffer
-            glUseProgram(shaderProgram); // Shader starten
 
             // View (Orbit-Kamera)
             // Umrechnung in Radianten
@@ -433,15 +517,35 @@ public class PythagorasBaum3D {
             // View-Matrix
             Matrix4f view = new Matrix4f().lookAt(camX, camY, camZ, 0.0f, 2.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 
+            // rendern vorbereiten
+            glBindVertexArray(vao);
+            glEnableVertexAttribArray(6); // Lesen aus dem VBO für Location 6 (wieder) aktivieren
+
+            // --- rendern ---
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // FrameBuffer leeren
+
+            // Hintergrund zeichnen
+            drawBG();
+
+            // Shader starten (Baum)
+            glUseProgram(treeShaderProgram);
+
             // Uniforms senden
             glUniform1f(maxDepthLoc, maxDepth);
             glUniform3f(viewPosLoc, camX, camY, camZ);
             glUniformMatrix4fv(projLoc, false, projection.get( singleMatrixBuffer ));
             glUniformMatrix4fv(viewLoc, false, view.get( singleMatrixBuffer ));
 
+            // Material-Daten senden
+            Material.WOOD.setMaterial(matAmbLoc[0], matDiffLoc[0], matSpecLoc[0], matShinLoc[0]);
+            Material.METALL.setMaterial(matAmbLoc[1], matDiffLoc[1], matSpecLoc[1], matShinLoc[1]);
+
             // VAO (Vertex Array Object - Positionen der Eckpunkte) binden und Instanced Draw Call
             glBindVertexArray(vao);
             glDrawElementsInstanced( GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0, instanceMatrices.size() ); // Instanced Rendering
+
+            // Boden-Platte rendern
+            drawGroundPlate();
 
             // Abschluss
             glfwSwapBuffers(window);
