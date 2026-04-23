@@ -88,6 +88,7 @@ public class PythagorasBaumOpenGL {
         init();
 //      DoubleBuffer xBuffer = BufferUtils.createDoubleBuffer(1);
 
+        // Render-Loop
         while ( !glfwWindowShouldClose( window )) {
             // FPS ermitteln
             double currentTime = glfwGetTime();

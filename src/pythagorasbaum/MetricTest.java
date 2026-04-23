@@ -4,6 +4,8 @@
 
 package pythagorasbaum;
 
+import pythagorasbaum.GLUtil.Metric;
+
 /**
  *
  * @author  Martin Pröhl alias MythGraphics

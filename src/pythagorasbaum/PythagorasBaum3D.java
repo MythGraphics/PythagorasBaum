@@ -11,11 +11,8 @@ package pythagorasbaum;
  *
  */
 
-import java.util.Arrays;
 import java.io.IOException;
 import java.nio.FloatBuffer;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import org.joml.Matrix3f;
@@ -32,69 +29,20 @@ import static org.lwjgl.opengl.GL30.glGenVertexArrays;
 import static org.lwjgl.opengl.GL31.glDrawElementsInstanced;
 import static org.lwjgl.opengl.GL33.glVertexAttribDivisor;
 import static org.lwjgl.system.MemoryUtil.NULL;
+import static pythagorasbaum.GLUtil.GLUtil.*;
+import pythagorasbaum.GLUtil.Material;
 
 public class PythagorasBaum3D {
 
-    public enum Material {
-        METALL (
-            new float[] {0.25f, 0.25f, 0.25f}, // Anteil r, g, b (1.0f == 100%)
-            new float[] {0.3f, 0.3f, 0.3f},
-            new float[] {1.0f, 1.0f, 0.55f},
-            128.0f
-        ),
-        EMERALD (
-            new float[] {0.0215f, 0.1745f, 0.0215f},
-            new float[] {0.07568f, 0.61424f, 0.07568f},
-            new float[] {0.633f, 0.7278f, 0.633f},
-            0.6f*128.0f
-        ),
-        OBSIDIAN (
-            new float[] {0.05375f, 0.05f, 0.06625f},
-            new float[] {0.18275f, 0.17f, 0.22525f},
-            new float[] {0.332741f, 0.328634f, 0.346435f},
-            0.3f*128.0f
-        ),
-        WOOD (
-            new float[] {0.2f, 0.2f, 0.2f},
-            new float[] {0.6f, 0.6f, 0.6f},
-            new float[] {0.05f, 0.05f, 0.05f},
-            2.0f
-        ),
-        PLASTIC (
-            new float[] {0.2f, 0.2f, 0.2f},
-            new float[] {1.0f, 1.0f, 1.0f},
-            new float[] {0.8f, 0.8f, 0.8f},
-            16.0f
-        );
-
-        final float[] ambient;
-        final float[] diffuse;
-        final float[] specular;
-        final float shininess;
-
-        Material(float[] ambient, float[] diffuse, float[] specular, float shininess) {
-            this.ambient   = ambient;
-            this.diffuse   = diffuse;
-            this.specular  = specular;
-            this.shininess = shininess;
-        }
-
-        public void setMaterial(int matAmbLoc, int matDiffLoc, int matSpecLoc, int matShinLoc) {
-            glUniform3f(matAmbLoc,  ambient[0],  ambient[1],  ambient[2]);
-            glUniform3f(matDiffLoc, diffuse[0],  diffuse[1],  diffuse[2]);
-            glUniform3f(matSpecLoc, specular[0], specular[1], specular[2]);
-            glUniform1f(matShinLoc, shininess);
-        }
-
-    }
-
     private final static String TITLE = "Pythagoras-Baum 3D (OpenGL)";
+    private final static String SHADERPATH = "src/pythagorasbaum/";
 
     private final List<Matrix4f> instanceMatrices = new ArrayList<>();
     private final List<Float> instanceDepths = new ArrayList<>();
     private final int[] matAmbLoc = new int[2], matDiffLoc = new int[2], matSpecLoc = new int[2], matShinLoc = new int[2];
     private final int MAX_INSTANCES = 17*1000; // Kapazität für max. Tiefe 7
     private final float moveSpeed = 0.05f;
+    private final float[] singleMatrixBuffer = new float[16];
     private final int maxDepth;
 
     private long window;
@@ -105,10 +53,13 @@ public class PythagorasBaum3D {
     private int frameCount = 0;
     private double lastTime = glfwGetTime();
     private FloatBuffer matrixBuffer;
-    private float camYrot   = 0.0f;  // Drehung um die Y-Achse
-    private float pitch     = 20.0f; // Oben/Unten
-    private float distance  = 7.0f;  // Abstand zum Baum
-    private float treeX     = 0.0f, treeY = 0.0f, treeZ = 0.0f;
+    private Matrix4f projection;
+
+    private float camYrot       = 0.0f;  // Drehung um die Y-Achse
+    private float pitch         = 20.0f; // Oben/Unten
+    private float distance      = 7.0f;  // Abstand zum Baum
+    private float camYOffset    = 2.0f;  // Baummitte
+    private float treeX         = 0.0f, treeY = 0.0f, treeZ = 0.0f;
 
     public PythagorasBaum3D(int maxDepth) {
         this.maxDepth = maxDepth;
@@ -119,14 +70,10 @@ public class PythagorasBaum3D {
 
     public static void main(String[] args) {
         if ( args == null || args.length == 0 ) {
-            new PythagorasBaum3D(5).run();
+            new PythagorasBaum3D(7).run();
         } else {
             new PythagorasBaum3D( Integer.parseInt( args[0] )).run();
         }
-    }
-
-    private static String readFile(String filename) throws IOException {
-        return Files.readString( Path.of( "src/pythagorasbaum/"+filename ));
     }
 
     private void dispose() {
@@ -138,67 +85,18 @@ public class PythagorasBaum3D {
 
     public void run() {
         init();
-        loop();
+        renderloop();
         dispose();
     }
 
     private void setupMesh() {
-        float[] vertices = {
-            // Positionen            // Normalen
-            // Vorne (Z+)
-            -0.5f, -0.5f,  0.5f,     0.0f,  0.0f,  1.0f,
-             0.5f, -0.5f,  0.5f,     0.0f,  0.0f,  1.0f,
-             0.5f,  0.5f,  0.5f,     0.0f,  0.0f,  1.0f,
-            -0.5f,  0.5f,  0.5f,     0.0f,  0.0f,  1.0f,
-            // Hinten (Z-)
-            -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
-            -0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
-             0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
-             0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
-            // Oben (Y+)
-            -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,
-            -0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,
-             0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,
-             0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,
-            // Unten (Y-)
-            -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,
-             0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,
-             0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,
-            -0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,
-            // Rechts (X+)
-             0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,
-             0.5f,  0.5f, -0.5f,     1.0f,  0.0f,  0.0f,
-             0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,
-             0.5f, -0.5f,  0.5f,     1.0f,  0.0f,  0.0f,
-            // Links (X-)
-            -0.5f, -0.5f, -0.5f,    -1.0f,  0.0f,  0.0f,
-            -0.5f, -0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,
-            -0.5f,  0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,
-            -0.5f,  0.5f, -0.5f,    -1.0f,  0.0f,  0.0f
-        };
-        // 12 Dreiecke (2 pro Würfelseite)
-        int[] indices = {
-             0,  1,  2,   2,  3,  0, // Vorne
-             4,  5,  6,   6,  7,  4, // Hinten
-             8,  9, 10,  10, 11,  8, // Oben
-            12, 13, 14,  14, 15, 12, // Unten
-            16, 17, 18,  18, 19, 16, // Rechts
-            20, 21, 22,  22, 23, 20  // Links
-        };
-        float[] bgQuadVertices = {
-            -1.0f,  1.0f,
-            -1.0f, -1.0f,
-             1.0f, -1.0f,
-             1.0f,  1.0f
-        };
-
         // --- Setup Hintergrund ---
         bgVao = glGenVertexArrays();
         int bgVbo = glGenBuffers();
 
         glBindVertexArray(bgVao);
         glBindBuffer(GL_ARRAY_BUFFER, bgVbo);
-        glBufferData(GL_ARRAY_BUFFER, bgQuadVertices, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, BG_QUAD_VERTICES, GL_STATIC_DRAW);
 
         // BG: nur ein Attribut: Position (Location 0 im Shader)
         glEnableVertexAttribArray(0);
@@ -212,7 +110,7 @@ public class PythagorasBaum3D {
         // VBO (Vertex Buffer Object) für die Vertices (Positionen) -> Daten-Container
         int vbo = glGenBuffers();
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, vertices, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, CUBE_VERTICES, GL_STATIC_DRAW);
 
         glEnableVertexAttribArray(0);
         int stride = 6 * Float.BYTES; // 3 Pos + 3 Normale
@@ -225,13 +123,14 @@ public class PythagorasBaum3D {
         // EBO für die Indices (Element Buffer Object): Die Reihenfolge, in der die Ecken zu Dreiecken verbunden werden (Indices) -> Verbindungs-Logik
         int ebo = glGenBuffers();
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices, GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, CUBE_INDICES, GL_STATIC_DRAW);
 
         // VBO (Vertex Buffer Object) für die Instanz-Matrizen (Location 1-4)
         instanceVbo = glGenBuffers();
         glBindBuffer(GL_ARRAY_BUFFER, instanceVbo);
 
-        // Platz reservieren für MAX_INSTANCES Matrizen mit 17 floats pro Matrix
+        // Platz reservieren für MAX_INSTANCES Matrizen mit 17 Floats pro Matrix
+        // Matrix belegt 16 Floats (4x4), die Tiefe 1 Float -> 17 Floats
         glBufferData(GL_ARRAY_BUFFER, MAX_INSTANCES * 17 * Float.BYTES, GL_DYNAMIC_DRAW);
 
         setupInstanceAttributes();
@@ -241,7 +140,7 @@ public class PythagorasBaum3D {
         groundVao = glGenVertexArrays();
         glBindVertexArray(groundVao);
         glBindBuffer(GL_ARRAY_BUFFER, vbo); // das existierende Baum-VBO nutzen
-        glBufferData(GL_ARRAY_BUFFER, vertices, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, CUBE_VERTICES, GL_STATIC_DRAW);
         // Das EBO (Indices) vom Baum auch hier binden. Es definiert ja nur, welche Punkte zu Dreiecken verbunden werden.
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
         // Position
@@ -274,12 +173,13 @@ public class PythagorasBaum3D {
     }
 
     private void resetPos() {
-        camYrot  = 0.0f;
-        pitch    = 20.0f;
-        distance = 7.0f;
-        treeX    = 0.0f;
-        treeY    = 0.0f;
-        treeZ    = 0.0f;
+        camYrot     = 0.0f;
+        camYOffset  = 2.0f;
+        pitch       = 20.0f;
+        distance    = 7.0f;
+        treeX       = 0.0f;
+        treeY       = 0.0f;
+        treeZ       = 0.0f;
     }
 
     private void init() {
@@ -300,20 +200,24 @@ public class PythagorasBaum3D {
         }
 
         glfwSetFramebufferSizeCallback(window, (win, width, height) -> {
-            glViewport(0, 0, width, height);
-            // hier müsste die Projektions-Matrix idealerweise neu berechnet werden
+            glViewport(0, 0, width, height); // OpenGL sagen, dass die Zeichenfläche nun größer ist
+            updateProjectionMatrix(width, height, projection); // Projection-Matrix neu berechnen
         });
 
         glfwMakeContextCurrent(window);
         GL.createCapabilities(); // Verbindet LWJGL mit dem OpenGL-Kontext
-        glEnable(GL_DEPTH_TEST); // Damit vordere Würfel hintere verdeckt
+        glEnable(GL_DEPTH_TEST); // Damit vordere Würfel hintere verdecken
         glfwSwapInterval(1); // Aktiviert V-Sync
 //      glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Wireframe aktivieren
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
         try {
-            treeShaderProgram = createShaderProgram( readFile( "tree-vertex.shader" ), readFile( "tree-fragment.shader" ));
-            bgShaderProgram   = createShaderProgram( readFile( "bg-vertex.shader" ), readFile( "bg-fragment.shader" ));
+            treeShaderProgram = createShaderProgram(
+                readFile( SHADERPATH+"tree-vertex.shader" ), readFile( SHADERPATH+"tree-fragment.shader" )
+            );
+            bgShaderProgram = createShaderProgram(
+                readFile( SHADERPATH+"bg-vertex.shader" ), readFile( SHADERPATH+"bg-fragment.shader" )
+            );
         } catch (IOException e) {
             throw new RuntimeException( "Lesen der Shader-Dateien fehlgeschlagen: " + e.getMessage() );
         }
@@ -340,44 +244,6 @@ public class PythagorasBaum3D {
         glUseProgram(treeShaderProgram);
     }
 
-    private void checkShaderError(int shaderId) {
-        if ( glGetShaderi( shaderId, GL_COMPILE_STATUS ) == GL_FALSE ) {
-            System.err.println( "Shader-Fehler: " + glGetShaderInfoLog( shaderId ));
-        }
-    }
-
-    private int createShaderProgram(String vertexCode, String fragmentCode) {
-        // Vertex Shader kompilieren
-        int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vertexShader, vertexCode);
-        glCompileShader(vertexShader);
-        checkShaderError(vertexShader);
-
-        // Fragment Shader kompilieren
-        int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(fragmentShader, fragmentCode);
-        glCompileShader(fragmentShader);
-        checkShaderError(fragmentShader);
-
-        // Programm verknüpfen (Linken)
-        int program = glCreateProgram();
-        glAttachShader(program, vertexShader);
-        glAttachShader(program, fragmentShader);
-        glLinkProgram(program);
-
-        // Shader-Objekte können nach dem Linken gelöscht werden
-        glDeleteShader(vertexShader);
-        glDeleteShader(fragmentShader);
-
-        return program;
-    }
-
-    public final static Matrix3f getNormalMatrix(Matrix4f modelMatrix, Matrix3f dest) {
-        Matrix4f nMatrix = new Matrix4f(modelMatrix);
-        nMatrix.invert().transpose();
-        return nMatrix.get3x3(dest); // Extrahiert den Rotations/Skalierungs-Teil
-    }
-
     private void drawBG() {
         glUseProgram(bgShaderProgram);
         glDisable(GL_DEPTH_TEST); // Tiefentest aus, damit es immer im Hintergrund ist
@@ -387,8 +253,8 @@ public class PythagorasBaum3D {
     }
 
     private void drawGroundPlate() {
-        // Deaktiviere das Lesen aus dem VBO für Location 6, damit glVertexAttrib1f überhaupt Priorität bekommt
-        /* Wenn ein Vertex-Attribut-Array aktiviert ist (glEnableVertexAttribArray),
+        /* Deaktiviere das Lesen aus dem VBO für Location 6, damit glVertexAttrib1f überhaupt Priorität bekommt:
+         * Wenn ein Vertex-Attribut-Array aktiviert ist (glEnableVertexAttribArray),
          * zieht OpenGL die Daten immer aus dem Puffer (deinem matrixBuffer mit der Tiefe).
          * Der Befehl glVertexAttrib1f wird dann schlicht ignoriert.
          * Indem man es für den Boden ausschaltest, "hört" der Shader auf den festen Wert -1.0f.
@@ -430,45 +296,61 @@ public class PythagorasBaum3D {
         glBindVertexArray(0);
     }
 
-    private void loop() {
+    private void renderloop() {
         // Projektion (Sichtfeld 45°, Aspect Ratio 800/600)
-        Matrix4f projection = new Matrix4f().perspective( org.joml.Math.toRadians(45.0f), 800.0f/600.0f, 0.1f, 100.0f );
-        float[] singleMatrixBuffer = new float[16];
+        projection = new Matrix4f().perspective( org.joml.Math.toRadians(45.0f), 800.0f/600.0f, 0.1f, 100.0f );
         while ( !glfwWindowShouldClose( window )) {
-            // FPS ermitteln
-            double time = (float) glfwGetTime();
+            // --- FPS ermitteln ---
+            double time = glfwGetTime();
             frameCount++;
-            // Sobald eine Sekunde vergangen ist
+            // sobald eine Sekunde vergangen ist
             if (time-lastTime >= 1.0) {
                 glfwSetWindowTitle(window, TITLE + " | FPS: " + frameCount); // FPS in den Titel schreiben
                 frameCount = 0;
                 lastTime = time;
             }
 
+            // --- View/Kamera (Orbit-Kamera) ---
+            // Umrechnung in Radianten
+            float radYrot  = (float) Math.toRadians(camYrot);
+            float radPitch = (float) Math.toRadians(pitch);
+            // Sphärische Koordinaten Berechnung
+            float camX = (float) (distance * Math.cos(radPitch) * Math.sin(radYrot));
+            float camY = (float) (distance * Math.sin(radPitch)) + camYOffset;
+            float camZ = (float) (distance * Math.cos(radPitch) * Math.cos(radYrot));
+            // View-Matrix
+            Matrix4f view = new Matrix4f().lookAt(
+                camX, camY, camZ,       // Position der Kamera
+                0.0f, camYOffset, 0.0f, // Punkt, auf den die Kamera schaut (Mitte des Baums)
+                0.0f, 1.0f, 0.0f        // Up-Vektor (Oben ist Y)
+            );
+
             // --- Tastatur abfragen ---
+            if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) { glfwSetWindowShouldClose(window, true); }
             // Rotationen (Winkel) & Zoom (Abstand) der Kamera
-            if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) { camYrot  -= 1.5f; }
-            if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) { camYrot  += 1.5f; }
-            if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) { pitch    -= 1.5f; }
-            if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) { pitch    += 1.5f; }
-            if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) { distance -= 0.1f; }
-            if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) { distance += 0.1f; }
-            // Pitch begrenzen (Vermeidet "Gimbal Lock" und Kopfstand)
-            if (pitch >  89.0f) { pitch =  89.0f; }
-            if (pitch < -89.0f) { pitch = -89.0f; }
+            if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) { camYrot     -= 1.5f; }
+            if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) { camYrot     += 1.5f; }
+            if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) { pitch       -= 1.5f; }
+            if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) { pitch       += 1.5f; }
+            if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) { distance    -= 0.1f; }
+            if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) { distance    += 0.1f; }
+            // Verschiebung Y der Kamera (X/Y) - CAVE: US-Tastaturlayout
+            if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS) { camYOffset  -= 0.1f; }
+            if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) { camYOffset  += 0.1f; }
             // Verschiebung X und Y (Pfeiltasten)
             if (glfwGetKey(window, GLFW_KEY_UP)    == GLFW_PRESS) { treeY += moveSpeed; }
             if (glfwGetKey(window, GLFW_KEY_DOWN)  == GLFW_PRESS) { treeY -= moveSpeed; }
             if (glfwGetKey(window, GLFW_KEY_LEFT)  == GLFW_PRESS) { treeX -= moveSpeed; }
             if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) { treeX += moveSpeed; }
-            // Verschiebung Z (plus/minus)
-            if (glfwGetKey(window, GLFW_KEY_KP_ADD)      == GLFW_PRESS ||
-                glfwGetKey(window, GLFW_KEY_EQUAL)       == GLFW_PRESS) { treeZ += moveSpeed; }
-            if (glfwGetKey(window, GLFW_KEY_KP_SUBTRACT) == GLFW_PRESS ||
-                glfwGetKey(window, GLFW_KEY_MINUS)       == GLFW_PRESS) { treeZ -= moveSpeed; }
+            // Verschiebung Z (plus/minus Numpad)
+            if (glfwGetKey(window, GLFW_KEY_KP_ADD)      == GLFW_PRESS) { treeZ += moveSpeed; }
+            if (glfwGetKey(window, GLFW_KEY_KP_SUBTRACT) == GLFW_PRESS) { treeZ -= moveSpeed; }
             // Zurücksetzen
             if (glfwGetKey(window, GLFW_KEY_HOME) == GLFW_PRESS) { resetPos(); }
             if (glfwGetKey(window, GLFW_KEY_R)    == GLFW_PRESS) { resetPos(); }
+            // Pitch begrenzen (Vermeidet "Gimbal Lock" und Kopfstand)
+            if (pitch >  89.0f) { pitch =  89.0f; }
+            if (pitch < -89.0f) { pitch = -89.0f; }
             // Translation begrenzen
             treeY = Math.clamp(treeY, -10.0f, 10.0f);
             treeX = Math.clamp(treeX, -10.0f, 10.0f);
@@ -506,25 +388,14 @@ public class PythagorasBaum3D {
             // glBufferSubData, da die Größe des Buffers auf der GPU (glBufferData in init) bereits feststeht.
             glBufferSubData(GL_ARRAY_BUFFER, 0, matrixBuffer);
 
-            // View (Orbit-Kamera)
-            // Umrechnung in Radianten
-            float radYrot  = (float) Math.toRadians(camYrot);
-            float radPitch = (float) Math.toRadians(pitch);
-            // Sphärische Koordinaten Berechnung
-            float camX = (float) (distance * Math.cos(radPitch) * Math.sin(radYrot));
-            float camY = (float) (distance * Math.sin(radPitch)) + 2.0f; // +2 als Offset-Kameraversatz -> Baummitte
-            float camZ = (float) (distance * Math.cos(radPitch) * Math.cos(radYrot));
-            // View-Matrix
-            Matrix4f view = new Matrix4f().lookAt(camX, camY, camZ, 0.0f, 2.0f, 0.0f, 0.0f, 1.0f, 0.0f);
-
             // rendern vorbereiten
-            glBindVertexArray(vao);
+            glBindVertexArray(vao); // VAO (Vertex Array Object - Positionen der Eckpunkte) binden
             glEnableVertexAttribArray(6); // Lesen aus dem VBO für Location 6 (wieder) aktivieren
 
             // --- rendern ---
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // FrameBuffer leeren
 
-            // Hintergrund zeichnen
+            // Hintergrund rendern
             drawBG();
 
             // Shader starten (Baum)
@@ -540,11 +411,12 @@ public class PythagorasBaum3D {
             Material.WOOD.setMaterial(matAmbLoc[0], matDiffLoc[0], matSpecLoc[0], matShinLoc[0]);
             Material.METALL.setMaterial(matAmbLoc[1], matDiffLoc[1], matSpecLoc[1], matShinLoc[1]);
 
-            // VAO (Vertex Array Object - Positionen der Eckpunkte) binden und Instanced Draw Call
-            glBindVertexArray(vao);
-            glDrawElementsInstanced( GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0, instanceMatrices.size() ); // Instanced Rendering
+            // Instanced Rendering
+            glBindVertexArray(vao); // VAO (Vertex Array Object - Positionen der Eckpunkte) binden
+            glEnableVertexAttribArray(6); // Lesen aus dem VBO für Location 6 (wieder) aktivieren
+            glDrawElementsInstanced( GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0, instanceMatrices.size() ); // Instanced Draw Call
 
-            // Boden-Platte rendern
+            // Bodenplatte rendern
             drawGroundPlate();
 
             // Abschluss

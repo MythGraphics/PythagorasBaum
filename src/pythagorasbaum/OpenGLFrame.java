@@ -64,7 +64,7 @@ public class OpenGLFrame {
         // Get the resolution of the primary monitor
         GLFWVidMode vidmode = glfwGetVideoMode( glfwGetPrimaryMonitor() );
         // Center the window on screen
-        glfwSetWindowPos( window, ( vidmode.width() - winw ) / 2, ( vidmode.height() - winh ) / 2 );
+        glfwSetWindowPos( window, ( vidmode.width()-winw ) / 2, ( vidmode.height()-winh ) / 2 );
 		// Make the OpenGLFrame context current
 		glfwMakeContextCurrent(window);
 		// Enable v-sync
