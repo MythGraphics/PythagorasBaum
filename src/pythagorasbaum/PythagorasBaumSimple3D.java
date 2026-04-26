@@ -12,14 +12,9 @@ package pythagorasbaum;
  */
 
 import java.nio.FloatBuffer;
-import java.util.ArrayList;
-import java.util.List;
-import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
-import org.lwjgl.glfw.Callbacks;
-import static org.lwjgl.glfw.GLFW.*;
-import org.lwjgl.opengl.GL;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL20.*;
@@ -27,33 +22,43 @@ import static org.lwjgl.opengl.GL30.glBindVertexArray;
 import static org.lwjgl.opengl.GL30.glGenVertexArrays;
 import static org.lwjgl.opengl.GL31.glDrawElementsInstanced;
 import static org.lwjgl.opengl.GL33.glVertexAttribDivisor;
-import static org.lwjgl.system.MemoryUtil.NULL;
-import static pythagorasbaum.GLUtil.GLUtil.*;
-import static pythagorasbaum.GLUtil.Shader.*;
-import pythagorasbaum.GLUtil.*;
+import static pythagorasbaum.GLUtil.GLUtil.CUBE_INDICES;
+import static pythagorasbaum.GLUtil.GLUtil.CUBE_VERTICES;
+import pythagorasbaum.GLUtil.Material;
+import pythagorasbaum.GLUtil.Shader;
+import static pythagorasbaum.GLUtil.Shader.FRAGMENT;
+import static pythagorasbaum.GLUtil.Shader.VERTEX;
 
 public class PythagorasBaumSimple3D extends AbstractGL3D {
 
     private final static String TITLE = "3D-Pythagoras-Baum, simple (OpenGL)";
     private final static String SHADERPATH = "src/pythagorasbaum/";
 
-    private final int MAX_INSTANCES = 10*1000;
-    private final List<Matrix4f> instanceMatrices = new ArrayList<>();
-    private final List<Float> instanceDepths = new ArrayList<>();
+    private final int maxInstances;
+    private final Matrix4f rootMatrix = new Matrix4f();
+    private final Matrix4f[] matrixStack;
+    private final TreePool treePool;
+    private final Vector3f vec = new Vector3f();
+    private final Vector3f camPos = new Vector3f();
 
     private int vao; // Vertex Array Object (Positionen der Eckpunkte)
     private int instanceVbo;
     private int matAmbLoc, matDiffLoc, matSpecLoc, matShinLoc;
-    private int treeShaderProgram;
     private FloatBuffer matrixBuffer;
 
     public PythagorasBaumSimple3D(int maxDepth) {
         super(maxDepth);
+        maxInstances = (int)(( Math.pow( 2, maxDepth+1 )));
+        treePool = new TreePool(maxInstances);
+        matrixStack = new Matrix4f[maxDepth+1];
+        for (int i = 0; i < matrixStack.length; i++) {
+            matrixStack[i] = new Matrix4f();
+        }
     }
 
     public static void main(String[] args) {
         if ( args == null || args.length == 0 ) {
-            new PythagorasBaumSimple3D(7).run();
+            new PythagorasBaumSimple3D(10).run();
         } else {
             new PythagorasBaumSimple3D( Integer.parseInt( args[0] )).run();
         }
@@ -68,9 +73,9 @@ public class PythagorasBaumSimple3D extends AbstractGL3D {
     public String getMainShaderFilePath(Shader shader) {
         switch (shader) {
             case VERTEX:
-                return SHADERPATH + "tree-vertex.shader";
+                return SHADERPATH + "simple-tree-vertex.shader";
             case FRAGMENT:
-                return SHADERPATH + "tree-fragment.shader";
+                return SHADERPATH + "simple-tree-fragment.shader";
         }
         return "";
     }
@@ -93,65 +98,51 @@ public class PythagorasBaumSimple3D extends AbstractGL3D {
 
     @Override
     public void drawMain() {
-        instanceMatrices.clear();
+        glEnable(GL_BLEND); // Blending einschalten
+//      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Misch-Formel für Transparenz festlegen
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_DST_COLOR); // Misch-Formel für Transparenz festlegen
 
-        // Wurzel-Matrix mit der Verschiebung erstellen
-        Matrix4f rootMatrix = new Matrix4f()
-            .translate(mainX, mainY, mainZ);
-        // Baum-Matrizen (instanceMatrices) berechnen
-        generateTree(rootMatrix, maxDepth, time);
-
-        // Buffer leeren und zurücksetzen (Position auf 0)
-        matrixBuffer.clear();
-
-        // Matrix in den FloatBuffer (matrixBuffer) für die GPU laden
-        for (int i = 0; i < instanceMatrices.size(); i++) {
-            Matrix4f mat = instanceMatrices.get(i);
-            float depthValue = instanceDepths.get(i);
-            mat.get( matrixBuffer.position(), matrixBuffer );
-            matrixBuffer.position( matrixBuffer.position() + 16 ); // 16 Werte schreiben
-            matrixBuffer.put(depthValue); // 17. Wert: Tiefe
-            // sicherstellen, dass wir nicht über die Kapazität hinausschießen
-            if ( matrixBuffer.position() >= matrixBuffer.capacity() ) {
-                System.err.println("MatrixBuffer überschreitet Kapazitätsgrenze!");
-                break;
-            }
+        view.origin(camPos); // Kamera-Position aus der View-Matrix berechnen
+        matrixBuffer.clear(); // Buffer leeren und zurücksetzen (Position auf 0)
+        for (int i = 0; i < treePool.size(); i++) {
+            int sortedIdx = treePool.indices[i];
+            treePool.matrices[sortedIdx].get(matrixBuffer); // 16 Floats
+            matrixBuffer.position(matrixBuffer.position() + 16);
+            matrixBuffer.put( treePool.depths[sortedIdx] ); // 17. Float
         }
-        // Buffer für OpenGL vorbereiten (Position auf 0, Limit auf aktuelle Position)
         matrixBuffer.flip();
+        treePool.reset(); // Pool zurücksetzen
+
+        rootMatrix.identity().translate(mainX, mainY, mainZ); // Wurzel-Matrix mit der Verschiebung berechnen
+        generateTree(rootMatrix, maxDepth, time); // Baum-Matrizen (instanceMatrices) berechnen
 
         // GPU-Upload: Daten in das Instanz-VBO schieben
         glBindBuffer(GL_ARRAY_BUFFER, instanceVbo);
         // glBufferSubData, da die Größe des Buffers auf der GPU (glBufferData in init) bereits feststeht.
         glBufferSubData(GL_ARRAY_BUFFER, 0, matrixBuffer);
 
-        // rendern vorbereiten
+        // rendern
         glBindVertexArray(vao); // VAO (Vertex Array Object - Positionen der Eckpunkte) binden
         glEnableVertexAttribArray(6); // Lesen aus dem VBO für Location 6 (wieder) aktivieren
+        glDrawElementsInstanced( GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0, treePool.size() ); // Instanced Draw Call
 
-        glBindVertexArray(vao); // VAO (Vertex Array Object - Positionen der Eckpunkte) binden
-        glEnableVertexAttribArray(6); // Lesen aus dem VBO für Location 6 (wieder) aktivieren
-        glDrawElementsInstanced( GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0, instanceMatrices.size() ); // Instanced Draw Call
-    }
-
-    private void generateTree(Matrix4f parentMatrix, int depth, double time) {
-        if (depth == 0) {
-            return;
-        }
-        // ToDo hier weiter
+        // Ausräumen
+        glDisable(GL_BLEND);
     }
 
     @Override
     public void loadLocations() {
         super.loadLocations();
-        matAmbLoc  = glGetUniformLocation(treeShaderProgram, "material_base.ambient");
-        matDiffLoc = glGetUniformLocation(treeShaderProgram, "material_base.diffuse");
-        matSpecLoc = glGetUniformLocation(treeShaderProgram, "material_base.specular");
-        matShinLoc = glGetUniformLocation(treeShaderProgram, "material_base.shininess");
+        matAmbLoc  = glGetUniformLocation(mainShaderProgram, "material_base.ambient");
+        matDiffLoc = glGetUniformLocation(mainShaderProgram, "material_base.diffuse");
+        matSpecLoc = glGetUniformLocation(mainShaderProgram, "material_base.specular");
+        matShinLoc = glGetUniformLocation(mainShaderProgram, "material_base.shininess");
     }
 
     @Override
     public void setupMain() {
+        matrixBuffer = BufferUtils.createFloatBuffer(maxInstances * 17);
+
         vao = glGenVertexArrays();
         glBindVertexArray(vao);
 
@@ -183,7 +174,7 @@ public class PythagorasBaumSimple3D extends AbstractGL3D {
 
         // Platz reservieren für MAX_INSTANCES Matrizen mit 17 Floats pro Matrix
         // Matrix belegt 16 Floats (4x4), Tiefe 1 Float -> 17 Floats
-        glBufferData(GL_ARRAY_BUFFER, MAX_INSTANCES * 17 * Float.BYTES, GL_DYNAMIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, maxInstances * 17 * Float.BYTES, GL_DYNAMIC_DRAW);
 
         // Matrix belegt 16 Floats (4x4), die Tiefe 1 Float = 17 Floats Gesamt-Schrittweite (stride)
         int instanceStride = 17 * Float.BYTES;
@@ -203,6 +194,49 @@ public class PythagorasBaumSimple3D extends AbstractGL3D {
         glVertexAttribPointer(depthLocation, 1, GL_FLOAT, false, instanceStride, 16*Float.BYTES); // Offset nach der Matrix
         glVertexAttribDivisor(depthLocation, 1); // Update pro Instanz
         glBindVertexArray(0); // entbinden
+    }
+
+    private void generateTree(Matrix4f parentMatrix, int depth, double time) {
+        if (depth <= 0) {
+            return;
+        }
+
+        // Distanz berechnen (Zero-Allocation mit JOML)
+        float distSq = parentMatrix.getTranslation(vec).distanceSquared(camPos);
+        treePool.add(parentMatrix, distSq, depth);
+
+        // Abbruchbedingung für die Blätter
+        if (depth <= 1) {
+            return;
+        }
+
+        // Animation: sanftes Schwingen: Sinus der Zeit: Basisneigung 45° + 5° Oszillation
+//      float alpha = (float) Math.toRadians( 45 + Math.sin( time + depth * 1.5f ) * 5.0f );
+        float alpha = (float) Math.toRadians( 45 + Math.sin( time ) * 5.0f );
+        float beta  = (float) (Math.PI / 2.0 - alpha);
+        float scaleLeft  = (float) Math.cos(alpha);
+        float scaleRight = (float) Math.sin(alpha);
+        Matrix4f childMatrix = matrixStack[depth];
+
+        for (int i = 0; i < 2; i++) {
+            childMatrix.set(parentMatrix);
+            switch (i) {
+                case 0: // rechts
+                    childMatrix.translate(0.5f, 0.5f, 0.5f)     // Zur rechten Oberkante des Vaters
+                               .rotateZ(-beta)                  // Scharnier-Rotation
+                               .scale(scaleRight)               // Skalierung mit sin(alpha)
+                               .translate(-0.5f, 0.5f, -0.5f);  // Pivot-Korrektur (Mitte des neuen Würfels)
+                    generateTree(childMatrix, depth-1, time);   // Rekursion
+                    break;
+                case 1: // links
+                    childMatrix.translate(-0.5f, 0.5f, -0.5f)   // Linke obere Ecke Vater
+                               .rotateZ(alpha)                  // Rotation nach links
+                               .scale(scaleLeft)                // Skalierung mit cos(alpha)
+                               .translate(0.5f, 0.5f, 0.5f);    // Pivot-Korrektur (Mitte des neuen Würfels)
+                    generateTree(childMatrix, depth-1, time);   // Rekursion
+                    break;
+            }
+        }
     }
 
 }

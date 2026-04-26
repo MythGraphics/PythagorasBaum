@@ -12,6 +12,7 @@ package pythagorasbaum.GLUtil;
  */
 
 import java.io.IOException;
+import java.nio.FloatBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.joml.Matrix3f;
@@ -74,6 +75,15 @@ public class GLUtil {
 
     public static String readFile(String filename) throws IOException {
         return Files.readString( Path.of( filename ));
+    }
+
+    public static boolean isBufferSizeSufficient(FloatBuffer matrixBuffer) {
+        if ( matrixBuffer.position() >= matrixBuffer.capacity() ) {
+            System.err.println("MatrixBuffer überschreitet Kapazitätsgrenze!");
+            return false;
+        } else {
+            return true;
+        }
     }
 
     public static void checkShaderError(int shaderId) {

@@ -34,22 +34,26 @@ public abstract class AbstractGL3D {
     public final float moveSpeed = 0.05f;
     public final float[] singleMatrixBuffer = new float[16];
 
-    public float mainX = 0.0f, mainY = 0.0f, mainZ = 0.0f;
-    public double time;
+    protected long window;
+    protected int mainShaderProgram;
+    protected Matrix4f projection, view;
 
-    private long window;
+    public float mainX = 0.0f, mainY = 0.0f, mainZ = 0.0f;
+    public double time = glfwGetTime();
+
     private int bgVao, groundVao; // Vertex Array Object (Positionen der Eckpunkte)
     private int viewPosLoc, projLoc, viewLoc, maxDepthLoc, groundLoc, normalGroundLoc;
-    private int mainShaderProgram, bgShaderProgram;
-    private Matrix4f projection, view;
+    private int bgShaderProgram;
     private float camX, camY, camZ;
-    private int frameCount = 0;
-    private double lastTime = glfwGetTime();
+    private int frameCount   = 0;
+    private double lastTime  = glfwGetTime();
+    private Matrix4f groundMatrix;
+    private Matrix3f normalGroundMatrix;
 
-    private float camYrot       = 0.0f;  // Drehung um die Y-Achse
-    private float pitch         = 20.0f; // Oben/Unten
-    private float distance      = 7.0f;  // Abstand zum Objekt
-    private float camYOffset    = 2.0f;  // Objektmitte
+    private float camYrot    = 0.0f;  // Drehung um die Y-Achse
+    private float pitch      = 20.0f; // Oben/Unten
+    private float distance   = 7.0f;  // Abstand zum Objekt
+    private float camYOffset = 1.0f;  // Betrachtungshöhe
 
     public AbstractGL3D(int maxDepth) {
         this.maxDepth = maxDepth;
@@ -100,8 +104,13 @@ public abstract class AbstractGL3D {
         GL.createCapabilities(); // Verbindet LWJGL mit dem OpenGL-Kontext
         glEnable(GL_DEPTH_TEST); // Damit vordere Würfel hintere verdecken
         glfwSwapInterval(1); // Aktiviert V-Sync
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Wireframe aktivieren
-//      glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+        // Backface Culling: nur Seiten zeichnen, die zur Kamera schauen
+//      glEnable(GL_CULL_FACE);
+//      glCullFace(GL_BACK);
+
+//      glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Wireframe aktivieren
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
         loadShader(); // Shader laden und kompilieren
         setupBackground();
@@ -128,10 +137,12 @@ public abstract class AbstractGL3D {
     }
 
     public void loadLocations() {
-        viewPosLoc    = glGetUniformLocation(mainShaderProgram, "viewPos");
-        projLoc       = glGetUniformLocation(mainShaderProgram, "projection");
-        viewLoc       = glGetUniformLocation(mainShaderProgram, "view");
-        maxDepthLoc   = glGetUniformLocation(mainShaderProgram, "maxDepth");
+        viewPosLoc      = glGetUniformLocation(mainShaderProgram, "viewPos");
+        projLoc         = glGetUniformLocation(mainShaderProgram, "projection");
+        viewLoc         = glGetUniformLocation(mainShaderProgram, "view");
+        maxDepthLoc     = glGetUniformLocation(mainShaderProgram, "maxDepth");
+        groundLoc       = glGetUniformLocation(mainShaderProgram, "uGroundMatrix");
+        normalGroundLoc = glGetUniformLocation(mainShaderProgram, "uGroundNormalMatrix");
     }
 
     public void setupBackground() {
@@ -158,6 +169,7 @@ public abstract class AbstractGL3D {
         // EBO für die Indices (Element Buffer Object): Die Reihenfolge, in der die Ecken zu Dreiecken verbunden werden (Indices) -> Verbindungs-Logik
         int ebo = glGenBuffers();
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, CUBE_INDICES, GL_STATIC_DRAW);
         // Position
         glEnableVertexAttribArray(0);
         int stride = 6 * Float.BYTES; // 3 Pos + 3 Normale
@@ -166,6 +178,12 @@ public abstract class AbstractGL3D {
         glEnableVertexAttribArray(5);
         glVertexAttribPointer(5, 3, GL_FLOAT, false, stride, 3 * Float.BYTES);
         glBindVertexArray(0); // entbinden
+        // Matrizen vorbereiten
+        groundMatrix = new Matrix4f()
+            .translate(0, -0.5f, 0) // unter dem Nullpunkt, so dass der erste Würfel direkt aufsitzt
+            .scale(20.0f, 0.1f, 20.0f); // sehr breit und flach
+        // Normalenmatrix berechnen: Inverse -> Transponierte -> zu mat3 konvertieren
+        normalGroundMatrix = getNormalMatrix( groundMatrix, new Matrix3f() );
     }
 
     public void processKeyBindings() {
@@ -288,26 +306,14 @@ public abstract class AbstractGL3D {
          */
         glDisableVertexAttribArray(6); // schalten das Attribut-Array aus, damit glVertexAttrib1f Priorität hat
         glEnable(GL_BLEND); // Blending einschalten
-        glDepthMask(false); // Baum durch den Boden sichtbar
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Misch-Formel festlegen (Standard für Transparenz)
+        glDepthMask(false); // Objekte durch den Boden sichtbar
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Misch-Formel für Transparenz festlegen
         glBindVertexArray(groundVao); // kennt nur Positionen & Normalen
 
-        // Matrizen vorbereiten
-        Matrix4f groundMatrix = new Matrix4f()
-            .translate(0, -0.5f, 0) // unter dem Nullpunkt, so dass der erste Würfel direkt aufsitzt
-            .scale(20.0f, 0.05f, 20.0f); // sehr breit und flach
-        // Normalenmatrix berechnen: Inverse -> Transponierte -> zu mat3 konvertieren
-        Matrix3f normalMatrix = getNormalMatrix( groundMatrix, new Matrix3f() );
-
         // Matrix als Uniform an den Shader senden
-        groundLoc = glGetUniformLocation(mainShaderProgram, "uGroundMatrix");
-        float[] buffer = new float[16];
-        glUniformMatrix4fv( groundLoc, false, groundMatrix.get( buffer ));
-
+        glUniformMatrix4fv( groundLoc, false, groundMatrix.get( new float[16] ));
         // Normalen-Matrix als Uniform an den Shader senden
-        normalGroundLoc = glGetUniformLocation(mainShaderProgram, "uGroundNormalMatrix");
-        float[] normalBuffer = new float[9];
-        glUniformMatrix3fv(normalGroundLoc, false, normalMatrix.get( normalBuffer ));
+        glUniformMatrix3fv( normalGroundLoc, false, normalGroundMatrix.get( new float[9] ));
 
         // Shader mitteilen, dass dies der Boden ist
         // Da wir keine Instanz-Daten nutzen, setzen wir ein generisches Attribut für aDepth (-1.0f)

@@ -93,7 +93,6 @@ public class PythagorasBaumOpenGL {
             // FPS ermitteln
             double currentTime = glfwGetTime();
             frameCount++;
-            // Sobald eine Sekunde vergangen ist
             if (currentTime-lastTime >= 1.0) {
                 glfwSetWindowTitle(window, TITLE + " | FPS: " + frameCount); // FPS in den Titel schreiben
                 frameCount = 0;
