@@ -30,7 +30,7 @@ import static pythagorasbaum.GLUtil.Shader.VERTEX;
 
 public class PythagorasBaum3D extends AbstractGL3D {
 
-    private final static String TITLE = "Pythagoras-Baum 3D (OpenGL)";
+    private final static String TITLE = "3D Pythagoras-Baum (OpenGL)";
     private final static String SHADERPATH = "src/pythagorasbaum/";
 
     private final int[] matAmbLoc = new int[2], matDiffLoc = new int[2], matSpecLoc = new int[2], matShinLoc = new int[2];

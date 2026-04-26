@@ -31,7 +31,7 @@ import static pythagorasbaum.GLUtil.Shader.VERTEX;
 
 public class PythagorasBaumSimple3D extends AbstractGL3D {
 
-    private final static String TITLE = "3D-Pythagoras-Baum, simple (OpenGL)";
+    private final static String TITLE = "3D Pythagoras-Baum aus Würfeln (OpenGL)";
     private final static String SHADERPATH = "src/pythagorasbaum/";
 
     private final int maxInstances;
@@ -99,8 +99,8 @@ public class PythagorasBaumSimple3D extends AbstractGL3D {
     @Override
     public void drawMain() {
         glEnable(GL_BLEND); // Blending einschalten
-//      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Misch-Formel für Transparenz festlegen
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_DST_COLOR); // Misch-Formel für Transparenz festlegen
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE); // Misch-Formel für Transparenz festlegen
+//      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_DST_COLOR); // Misch-Formel für Transparenz festlegen
 
         view.origin(camPos); // Kamera-Position aus der View-Matrix berechnen
         matrixBuffer.clear(); // Buffer leeren und zurücksetzen (Position auf 0)
@@ -126,7 +126,7 @@ public class PythagorasBaumSimple3D extends AbstractGL3D {
         glEnableVertexAttribArray(6); // Lesen aus dem VBO für Location 6 (wieder) aktivieren
         glDrawElementsInstanced( GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0, treePool.size() ); // Instanced Draw Call
 
-        // Ausräumen
+        // Aufräumen
         glDisable(GL_BLEND);
     }
 
@@ -167,7 +167,7 @@ public class PythagorasBaumSimple3D extends AbstractGL3D {
         setupInstanceAttributes();
     }
 
-    public void setupInstanceAttributes() {
+    private void setupInstanceAttributes() {
         // VBO (Vertex Buffer Object) für die Instanz-Matrizen (Location 1-4)
         instanceVbo = glGenBuffers();
         glBindBuffer(GL_ARRAY_BUFFER, instanceVbo);

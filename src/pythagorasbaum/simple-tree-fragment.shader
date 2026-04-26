@@ -56,7 +56,7 @@ void main() {
         baseColor = groundColor;
     } else {
         // Materialeigenschaften & -farbe interpolieren
-        float baseAlpha = 0.8;
+        float baseAlpha = 0.7;
         alpha           = mix(baseAlpha, 1.0, fresnel);
         baseColor       = mix(leafColor, rootColor, factor);
     }
