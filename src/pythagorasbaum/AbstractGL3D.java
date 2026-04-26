@@ -42,7 +42,8 @@ public abstract class AbstractGL3D extends AbstractGL3DBasic {
     @Override
     public void loadAdditionalShader() throws IOException {
         bgShaderProgram = createShaderProgram(
-            readFile( getBGShaderFilePath( VERTEX )), readFile( getBGShaderFilePath( FRAGMENT ))
+            readShaderFile( getBGShaderFilePath( VERTEX ), getClass() ),
+            readShaderFile( getBGShaderFilePath( FRAGMENT ), getClass() )
         );
     }
 

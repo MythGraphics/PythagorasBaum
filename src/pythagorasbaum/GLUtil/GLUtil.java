@@ -11,10 +11,9 @@ package pythagorasbaum.GLUtil;
  *
  */
 
+import static graphic.io.RessourceLoader.loadTextFile;
 import java.io.IOException;
 import java.nio.FloatBuffer;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import static org.lwjgl.opengl.GL11.GL_FALSE;
@@ -73,8 +72,9 @@ public class GLUtil {
 
     private GLUtil() {}
 
-    public static String readFile(String filename) throws IOException {
-        return Files.readString( Path.of( filename ));
+    public static String readShaderFile(String fileName, Class clazz) throws IOException {
+        // return java.nio.file.Files.readString( java.nio.file.Path.of( fileName ));
+        return loadTextFile(fileName, clazz);
     }
 
     public static boolean isBufferSizeSufficient(FloatBuffer matrixBuffer) {

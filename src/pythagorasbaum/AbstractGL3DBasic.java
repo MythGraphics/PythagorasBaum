@@ -33,6 +33,7 @@ public abstract class AbstractGL3DBasic {
     public final int maxDepth;
     public final float moveSpeed = 0.05f;
     public final float[] singleMatrixBuffer = new float[16];
+    public final float[] singleNormalBuffer = new float[9];
 
     public float mainX      = 0.0f, mainY = 0.0f, mainZ = 0.0f;
     public double time      = glfwGetTime();
@@ -60,7 +61,8 @@ public abstract class AbstractGL3DBasic {
             throw new IllegalArgumentException("maxDepth <1 unsinnig.");
         }
     }
-abstract String getTitle();
+
+    abstract String getTitle();
     abstract String getMainShaderFilePath(Shader shader);
     abstract void setupMain();
     abstract void drawMain(); // instanced rendering
@@ -122,7 +124,8 @@ abstract String getTitle();
     public final void loadShader() {
         try {
             mainShaderProgram = createShaderProgram(
-                readFile( getMainShaderFilePath( VERTEX )), readFile( getMainShaderFilePath( FRAGMENT ))
+                readShaderFile( getMainShaderFilePath( VERTEX ), getClass() ),
+                readShaderFile( getMainShaderFilePath( FRAGMENT ), getClass() )
             );
             loadAdditionalShader();
         } catch (IOException e) {
@@ -292,9 +295,9 @@ abstract String getTitle();
         glBindVertexArray(groundVao); // kennt nur Positionen & Normalen
 
         // Matrix als Uniform an den Shader senden
-        glUniformMatrix4fv( groundLoc, false, groundMatrix.get( new float[16] ));
+        glUniformMatrix4fv( groundLoc, false, groundMatrix.get( singleMatrixBuffer ));
         // Normalen-Matrix als Uniform an den Shader senden
-        glUniformMatrix3fv( normalGroundLoc, false, normalGroundMatrix.get( new float[9] ));
+        glUniformMatrix3fv( normalGroundLoc, false, normalGroundMatrix.get( singleNormalBuffer ));
 
         // Shader mitteilen, dass dies der Boden ist
         // Da wir keine Instanz-Daten nutzen, setzen wir ein generisches Attribut für aDepth (-1.0f)
