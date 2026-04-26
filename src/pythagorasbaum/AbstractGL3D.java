@@ -31,7 +31,7 @@ public abstract class AbstractGL3D extends AbstractGL3DBasic {
         super(maxDepth);
     }
 
-    abstract String getBGShaderFilePath(Shader shader);
+    abstract String getBGShaderFile(Shader shader);
 
     @Override
     public void init() {
@@ -42,8 +42,8 @@ public abstract class AbstractGL3D extends AbstractGL3DBasic {
     @Override
     public void loadAdditionalShader() throws IOException {
         bgShaderProgram = createShaderProgram(
-            readShaderFile( getBGShaderFilePath( VERTEX ), getClass() ),
-            readShaderFile( getBGShaderFilePath( FRAGMENT ), getClass() )
+            readShaderFile( getBGShaderFile( VERTEX ), getClass() ),
+            readShaderFile( getBGShaderFile( FRAGMENT ), getClass() )
         );
     }
 

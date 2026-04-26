@@ -63,7 +63,7 @@ public abstract class AbstractGL3DBasic {
     }
 
     abstract String getTitle();
-    abstract String getMainShaderFilePath(Shader shader);
+    abstract String getMainShaderFile(Shader shader);
     abstract void setupMain();
     abstract void drawMain(); // instanced rendering
 
@@ -124,8 +124,8 @@ public abstract class AbstractGL3DBasic {
     public final void loadShader() {
         try {
             mainShaderProgram = createShaderProgram(
-                readShaderFile( getMainShaderFilePath( VERTEX ), getClass() ),
-                readShaderFile( getMainShaderFilePath( FRAGMENT ), getClass() )
+                readShaderFile( getMainShaderFile( VERTEX ), getClass() ),
+                readShaderFile( getMainShaderFile( FRAGMENT ), getClass() )
             );
             loadAdditionalShader();
         } catch (IOException e) {

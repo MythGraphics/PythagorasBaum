@@ -31,7 +31,6 @@ import static pythagorasbaum.GLUtil.Shader.VERTEX;
 public class PythagorasBaum3D extends AbstractGL3D {
 
     private final static String TITLE = "3D Pythagoras-Baum (OpenGL)";
-    private final static String SHADERPATH = "src/pythagorasbaum/";
 
     private final int[] matAmbLoc = new int[2], matDiffLoc = new int[2], matSpecLoc = new int[2], matShinLoc = new int[2];
     private final int maxInstances;
@@ -76,23 +75,23 @@ public class PythagorasBaum3D extends AbstractGL3D {
     }
 
     @Override
-    public String getMainShaderFilePath(Shader shader) {
+    public String getMainShaderFile(Shader shader) {
         switch (shader) {
             case VERTEX:
-                return SHADERPATH + "tree-vertex.shader";
+                return "tree-vertex.shader";
             case FRAGMENT:
-                return SHADERPATH + "tree-fragment.shader";
+                return "tree-fragment.shader";
         }
         return "";
     }
 
     @Override
-    public String getBGShaderFilePath(Shader shader) {
+    public String getBGShaderFile(Shader shader) {
         switch (shader) {
             case VERTEX:
-                return SHADERPATH + "bg-vertex.shader";
+                return "bg-vertex.shader";
             case FRAGMENT:
-                return SHADERPATH + "bg-fragment.shader";
+                return "bg-fragment.shader";
         }
         return "";
     }

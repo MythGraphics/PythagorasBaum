@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 public class RessourceLoader {
 
     public final static String JAR          = "MythGraphics_PythagorasBaum.jar";
-    public final static String ZIP_PATH     = "/pythagorasbaum/";
+    public final static String ZIP_PATH     = "pythagorasbaum/";
     public final static String LOCAL_PATH   = "src/"+ZIP_PATH;
 
     private final static String EMPTY       = "fileName null oder leer.";
@@ -51,16 +51,19 @@ public class RessourceLoader {
 
     public static String loadTextFile(String fileName, Class clazz) {
         if ( fileName == null || fileName.isBlank() ) { return null; }
+        System.err.println(EMPTY);
         // versuchen, von FS laden
         try { return loadTextFileFromFS(fileName); }
         catch (IOException e) { System.err.println( e.getMessage() ); }
         try { return loadTextFileFromFS(LOCAL_PATH+fileName); }
         catch (IOException e) { System.err.println( e.getMessage() ); }
+        System.err.println("\nLaden von Dateisystem fehlgeschlagen - suche weiter ...\n");
         // versuchen, von JAR zu laden
         try { return loadTextFileFromJar(fileName, clazz); }
         catch (IOException e) { System.err.println( e.getMessage() ); }
         try { return loadTextFileFromJar(ZIP_PATH+fileName, clazz); }
         catch (IOException e) { System.err.println( e.getMessage() ); }
+        System.err.println("\nLaden von JAR fehlgeschlagen.\nNichts zum Laden gefunden.\n");
         return null;
     }
 
