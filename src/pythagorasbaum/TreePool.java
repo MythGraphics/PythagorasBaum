@@ -1,9 +1,8 @@
-package pythagorasbaum;
-
 /*
  *
  */
 
+package pythagorasbaum;
 
 /**
  *

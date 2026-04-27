@@ -39,20 +39,6 @@ public class PythagorasBaumOpenGL extends AbstractGL2D {
     }
 
     @Override
-    public void mouseCallback(double xpos, double ypos) {
-/*
-        // Mausposition abfragen und Winkel berechnen
-        glfwGetCursorPos(window, xBuffer, null);
-        double xPos = xBuffer.get(0);
-        int[] width = new int[1];
-        glfwGetWindowSize(window, width, null);
-
-        // Mappe X-Position (0 bis Fensterbreite) auf Winkel (10 bis 80 Grad) für MausWinkel
-        winkel = (float) (10 + (xPos / width[0]) * 70);
- */
-    }
-
-    @Override
     public void drawMain() {
         float wind = (float) Math.sin(animationOffset * 1.5f) * 5.0f; // Wind-Effekt: 5° Oszillation
 
@@ -60,7 +46,7 @@ public class PythagorasBaumOpenGL extends AbstractGL2D {
         animationOffset += 0.01f;
         farbPhase += 0.01f;
 
-        drawTree(0.6f, 0, winkel + wind); // Baum zeichnen
+        drawTree(0.6f, 0, winkel+wind); // Baum zeichnen
     }
 
     private void drawTree(float size, int ebene, float winkelAlpha) {
