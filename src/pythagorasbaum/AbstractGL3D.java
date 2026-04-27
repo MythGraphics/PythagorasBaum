@@ -11,16 +11,16 @@ package pythagorasbaum;
  *
  */
 
+import static GLUtil.GLUtil.*;
+import GLUtil.Shader;
+import static GLUtil.Shader.FRAGMENT;
+import static GLUtil.Shader.VERTEX;
 import java.io.IOException;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL20.*;
 import static org.lwjgl.opengl.GL30.glBindVertexArray;
 import static org.lwjgl.opengl.GL30.glGenVertexArrays;
-import static pythagorasbaum.GLUtil.GLUtil.*;
-import pythagorasbaum.GLUtil.Shader;
-import static pythagorasbaum.GLUtil.Shader.FRAGMENT;
-import static pythagorasbaum.GLUtil.Shader.VERTEX;
 
 public abstract class AbstractGL3D extends AbstractGL3DBasic {
 

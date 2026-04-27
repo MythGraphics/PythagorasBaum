@@ -2,7 +2,7 @@
  *
  */
 
-package pythagorasbaum.GLUtil;
+package GLUtil;
 
 /**
  *

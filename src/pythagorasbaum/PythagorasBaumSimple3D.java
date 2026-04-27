@@ -11,6 +11,12 @@ package pythagorasbaum;
  *
  */
 
+import static GLUtil.GLUtil.CUBE_INDICES;
+import static GLUtil.GLUtil.CUBE_VERTICES;
+import GLUtil.Material;
+import GLUtil.Shader;
+import static GLUtil.Shader.FRAGMENT;
+import static GLUtil.Shader.VERTEX;
 import java.nio.FloatBuffer;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -22,12 +28,6 @@ import static org.lwjgl.opengl.GL30.glBindVertexArray;
 import static org.lwjgl.opengl.GL30.glGenVertexArrays;
 import static org.lwjgl.opengl.GL31.glDrawElementsInstanced;
 import static org.lwjgl.opengl.GL33.glVertexAttribDivisor;
-import static pythagorasbaum.GLUtil.GLUtil.CUBE_INDICES;
-import static pythagorasbaum.GLUtil.GLUtil.CUBE_VERTICES;
-import pythagorasbaum.GLUtil.Material;
-import pythagorasbaum.GLUtil.Shader;
-import static pythagorasbaum.GLUtil.Shader.FRAGMENT;
-import static pythagorasbaum.GLUtil.Shader.VERTEX;
 
 public class PythagorasBaumSimple3D extends AbstractGL3DBasic {
 

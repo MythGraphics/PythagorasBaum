@@ -4,14 +4,14 @@
 
 package pythagorasbaum;
 
-import pythagorasbaum.GLUtil.Metric;
-
 /**
  *
  * @author  Martin Pröhl alias MythGraphics
  * @version 1.0.0
  *
  */
+
+import GLUtil.Metric;
 
 public class MetricTest {
 
