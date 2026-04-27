@@ -29,7 +29,7 @@ import pythagorasbaum.GLUtil.Shader;
 import static pythagorasbaum.GLUtil.Shader.FRAGMENT;
 import static pythagorasbaum.GLUtil.Shader.VERTEX;
 
-public class PythagorasBaumSimple3D extends AbstractGL3D {
+public class PythagorasBaumSimple3D extends AbstractGL3DBasic {
 
     private final static String TITLE = "3D Pythagoras-Baum aus Würfeln (OpenGL)";
 
@@ -75,17 +75,6 @@ public class PythagorasBaumSimple3D extends AbstractGL3D {
                 return "simple-tree-vertex.shader";
             case FRAGMENT:
                 return "simple-tree-fragment.shader";
-        }
-        return "";
-    }
-
-    @Override
-    public String getBGShaderFile(Shader shader) {
-        switch (shader) {
-            case VERTEX:
-                return "bg-vertex.shader";
-            case FRAGMENT:
-                return "bg-fragment.shader";
         }
         return "";
     }

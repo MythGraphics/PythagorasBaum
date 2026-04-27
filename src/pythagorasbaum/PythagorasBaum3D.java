@@ -106,7 +106,7 @@ public class PythagorasBaum3D extends AbstractGL3D {
         matrixIndex = 0; // Pool-Nutzung von vorn beginnen
         matrixBuffer.clear(); // Buffer leeren und zurücksetzen (Position auf 0)
         rootMatrix.identity().translate(mainX, mainY, mainZ); // Wurzel-Matrix mit der Verschiebung berechnen
-        generateTree(rootMatrix, maxDepth, time); // Baum-Matrizen (instanceMatrices) berechnen
+        generateTree2(rootMatrix, maxDepth, time); // Baum-Matrizen (instanceMatrices) berechnen
 
         // Buffer für OpenGL "umklappen".
         // Da wir mit absoluten Indizes geschrieben haben, müssen wir das Limit manuell setzen

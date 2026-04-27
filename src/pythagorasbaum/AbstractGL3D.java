@@ -64,13 +64,11 @@ public abstract class AbstractGL3D extends AbstractGL3DBasic {
 
     @Override
     public void drawBackground() {
-/*
         glUseProgram(bgShaderProgram);
         glDisable(GL_DEPTH_TEST); // Tiefentest aus, damit es immer im Hintergrund ist
         glBindVertexArray(bgVao);
         glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
         glEnable(GL_DEPTH_TEST);  // Tiefentest wieder an
- */
     }
 
 }

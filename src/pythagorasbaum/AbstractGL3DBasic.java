@@ -35,11 +35,10 @@ public abstract class AbstractGL3DBasic {
     public final float[] singleMatrixBuffer = new float[16];
     public final float[] singleNormalBuffer = new float[9];
 
-    public float mainX      = 0.0f, mainY = 0.0f, mainZ = 0.0f;
-    public double time      = glfwGetTime();
-    public double lastTime  = time;
-    public int frameCount   = 0;
-
+    protected float mainX       = 0.0f, mainY = 0.0f, mainZ = 0.0f;
+    protected double time       = glfwGetTime();
+    protected double lastTime   = time;
+    protected int frameCount    = 0;
     protected long window;
     protected int mainShaderProgram;
     protected Matrix4f projection, view;
@@ -202,7 +201,7 @@ public abstract class AbstractGL3DBasic {
     }
 
     // Methode optional, daher nicht abstract
-    public void processMouseBindings() {}
+    public void mouseCallback(double xpos, double ypos) {}
 
     public void resetPos() {
         camYrot     = 0.0f;
@@ -238,8 +237,11 @@ public abstract class AbstractGL3DBasic {
             }
 
             setCamera(); // View/Kamera (Orbit-Kamera)
-            processKeyBindings(); // Tastatur abfragen
-            processMouseBindings(); // Maus abfragen
+            processKeyBindings(); // Tastatur-Abfragen
+            // Callback für Maus setzen
+            glfwSetCursorPosCallback(window, (windowHandle, xpos, ypos) -> {
+                mouseCallback(xpos, ypos);
+            });
 
             // --- rendern ---
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // FrameBuffer leeren
