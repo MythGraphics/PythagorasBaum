@@ -17,9 +17,9 @@ import java.util.stream.Collectors;
 
 public class RessourceLoader {
 
-    public final static String JAR          = "MythGraphics_PythagorasBaum.jar";
-    public final static String ZIP_PATH     = "pythagorasbaum/";
-    public final static String LOCAL_PATH   = "src/"+ZIP_PATH;
+    public final static String JAR          = "MythGraphics_Game.jar";
+    public final static String ZIP_PATH     = "/resources/";
+    public final static String LOCAL_PATH   = "src"+ZIP_PATH;
 
     private final static String EMPTY       = "fileName null oder leer.";
 
@@ -50,8 +50,10 @@ public class RessourceLoader {
     }
 
     public static String loadTextFile(String fileName, Class clazz) {
-        if ( fileName == null || fileName.isBlank() ) { return null; }
-        System.err.println(EMPTY);
+        if ( fileName == null || fileName.isBlank() ) {
+            System.err.println(EMPTY);
+            return null;
+        }
         // versuchen, von FS laden
         try { return loadTextFileFromFS(fileName); }
         catch (IOException e) { System.err.println( e.getMessage() ); }
