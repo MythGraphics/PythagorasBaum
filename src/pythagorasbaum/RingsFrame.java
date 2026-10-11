@@ -13,7 +13,7 @@ package pythagorasbaum;
 
 public class RingsFrame extends javax.swing.JFrame {
 
-    private int winw, winh;                                                                                             // Window width, Window height
+    private int winw, winh; // window width, window height
     private Rings panel;
 
     public RingsFrame() {
@@ -100,8 +100,8 @@ public class RingsFrame extends javax.swing.JFrame {
     }//GEN-LAST:event_formMouseClicked
 
     private void formMouseWheelMoved(java.awt.event.MouseWheelEvent evt) {//GEN-FIRST:event_formMouseWheelMoved
-        winw += evt.getWheelRotation()*winw*0.1;                                                                        // 10% pro "Tick"
-        winh += evt.getWheelRotation()*winh*0.1;                                                                        // 10% pro "Tick"
+        winw += evt.getWheelRotation()*winw*0.1; // 10% pro "Tick"
+        winh += evt.getWheelRotation()*winh*0.1; // 10% pro "Tick"
         super.setSize(winw, winh);
         panel.setSize(winw, winh);
     }//GEN-LAST:event_formMouseWheelMoved
@@ -111,8 +111,8 @@ public class RingsFrame extends javax.swing.JFrame {
     }//GEN-LAST:event_formKeyTyped
 
     /**
-    * @param args the command line arguments
-    */
+     * @param args the command line arguments
+     */
     public static void main(String args[]) {
         java.awt.EventQueue.invokeLater( new Runnable() {
             @Override

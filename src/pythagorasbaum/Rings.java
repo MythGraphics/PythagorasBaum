@@ -18,8 +18,8 @@ import javax.swing.JPanel;
 public class Rings extends JPanel {
 
     private Graphics2D g2d;
-    private Point mp;                                                                                                   // MousePoint
-    private double r = 100.0;                                                                                           // Radius Kreis
+    private Point mp;         // MousePoint
+    private double r = 100.0; // Radius Kreis
     private Ellipse2D kreis1, kreis2, kreis3;
 
     public Rings() {

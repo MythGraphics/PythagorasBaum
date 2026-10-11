@@ -15,9 +15,6 @@ import GLUtil.Metric;
 
 public class MetricTest {
 
-    /**
-     * @param args the command line arguments
-     */
     public static void main(String[] args) {
         Metric m = new Metric(400, 300);
         float[] point = m.getGLPoint(200, 150);

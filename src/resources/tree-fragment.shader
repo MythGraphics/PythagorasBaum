@@ -1,7 +1,7 @@
 // OpenGL Shading Language
 // Fragment Shader == Pixel Shader -> Fragment == Pixel
 
-#version 330 core
+# version 330 core
 
 struct Material {
     vec3 ambient;
@@ -28,19 +28,19 @@ void main() {
     float shadowFactor = mix(1.0, 0.5, vDepth / maxDepth);
     float gamma = 1.4; // Gamma-Korrektur-Faktor
     float alpha = 1.0;
-    
+
     // Farben definieren
     vec3 lightColor  = vec3(1.0, 1.0, 1.0); // weiß
     vec3 groundColor = vec3(0.4, 0.6, 0.9); // himmelblau
     vec3 rootColor   = vec3(0.4, 0.2, 0.1); // braun
     vec3 leafColor   = vec3(0.1, 0.8, 0.2); // grün
-    
+
     // Materialeigenschaften definieren
     vec3 ambientColor;
     vec3 diffuseColor;
     vec3 specularColor;
     float shininess;
-    
+
     // Grundfarben basierend auf der Tiefe
     vec3 baseColor;
     if (vDepth < 0.0) {
@@ -58,25 +58,25 @@ void main() {
         specularColor = mix(material_top.specular,  material_base.specular,  factor);
         shininess     = mix(material_top.shininess, material_base.shininess, factor);
     }
-    
+
     // Beleuchtungs-Vektoren
     vec3 normal     = normalize(vNormal);
     vec3 lightDir   = normalize( vec3( 1.0, 1.0, 0.2 )); // Lichtquelle rechts (x) oben (y) etwas vor der Betrachtungsebene (z)
     vec3 viewDir    = normalize(viewPos - vFragPos);
     vec3 reflectDir = reflect(-lightDir, normal);
-    
+
     // Ambient: Grundhelligkeit im Schatten
     vec3 ambient = ambientColor * baseColor;
-    
+
     // Diffuses Licht: Lambert-Reflexion
     // Das Skalarprodukt dot() berechnet den Kosinus des Winkels zwischen Normale und Licht
     float diff   = max( dot( normal, lightDir ), 0.0 );
     vec3 diffuse = (diff * diffuseColor) * baseColor * shadowFactor;
-    
+
     // Specular: Glanzlicht
     float spec    = pow( max( dot( viewDir, reflectDir ), 0.0 ), shininess );
     vec3 specular = (spec * specularColor) * lightColor;
-    
+
     // Finales Ergebnis: Farbe * Helligkeit
     vec3 result = ambient + diffuse + specular;
     result = pow( result, vec3( 1.0 / gamma )); // Gamma-Korrektur

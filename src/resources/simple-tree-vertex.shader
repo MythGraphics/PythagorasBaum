@@ -1,6 +1,6 @@
 // OpenGL Shading Language
 
-#version 330 core
+# version 330 core
 
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in mat4 instanceMatrix;

@@ -22,13 +22,13 @@ import static org.lwjgl.opengl.GL11.*;
 import org.lwjgl.system.MemoryUtil;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
-public class OpenGLFrameRenderTest {
+public class GLRenderTest {
 
 	private long window; // window handle
     private final int winw = 640, winh = 480; // window width, window height
 
     public static void main(String[] args) {
-        new OpenGLFrameRenderTest().run();
+        new GLRenderTest().run();
     }
 
 	public void run() {
@@ -65,7 +65,7 @@ public class OpenGLFrameRenderTest {
         GLFWVidMode vidmode = glfwGetVideoMode( glfwGetPrimaryMonitor() );
         // Center the window on screen
         glfwSetWindowPos( window, ( vidmode.width()-winw ) / 2, ( vidmode.height()-winh ) / 2 );
-		// Make the OpenGLFrameRenderTest context current
+		// Make the GLRenderTest context current
 		glfwMakeContextCurrent(window);
 		// Enable v-sync
 		glfwSwapInterval(1);
@@ -119,9 +119,9 @@ public class OpenGLFrameRenderTest {
 
 	private void loop() {
 		/* This line is critical for LWJGL's interoperation with GLFW's
-		   OpenGLFrameRenderTest context, or any context that is managed externally.
+		   GLRenderTest context, or any context that is managed externally.
 		   LWJGL detects the context that is current in the current thread,
-		   creates the GLCapabilities instance and makes the OpenGLFrameRenderTest
+		   creates the GLCapabilities instance and makes the GLRenderTest
 		   bindings available for use.
            Will let lwjgl know we want to use this context as the context to draw with */
 		GL.createCapabilities();
