@@ -7,7 +7,7 @@ package graphic.io;
 /**
  *
  * @author  Martin Pröhl alias MythGraphics
- * @version 1.0.0
+ * @version 1.0.1
  *
  */
 
@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 
 public class RessourceLoader {
 
-    public final static String JAR          = "MythGraphics_Game.jar";
+    public final static String JAR          = "MythGraphics_PythagorasBaum.jar";
     public final static String ZIP_PATH     = "/resources/";
     public final static String LOCAL_PATH   = "src"+ZIP_PATH;
 

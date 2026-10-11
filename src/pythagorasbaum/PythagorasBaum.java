@@ -25,7 +25,7 @@ public class PythagorasBaum extends JPanel {
     private Color color2 = new Color(0, 255, 0);    // Farbe der "Blätter" (grün)
     private Graphics2D graphics;
     private int depth = 8; // Rekursionstiefe des Baums
-    private double tanphi = Math.tan( Math.toRadians(45) ); // Tangens des Winkels Phi (ϕ) zwischen Hypothenuse und rechter Kathete
+    private double tanphi = Math.tan( Math.toRadians( 45 )); // Tangens des Winkels Phi (ϕ) zwischen Hypothenuse und rechter Kathete
 
     public PythagorasBaum() {
         this(400, 300);
@@ -49,8 +49,8 @@ public class PythagorasBaum extends JPanel {
     }
 
     /**
-     *
-     * @return phi Winkel Phi in Grad (Winkel zwischen Hypothenuse und rechter Kathete)
+     * Winkel Phi in Grad (Winkel zwischen Hypothenuse und rechter Kathete).
+     * @return phi
      */
     public double getPhi() {
         return Math.toDegrees( Math.atan( tanphi ));
@@ -108,15 +108,16 @@ public class PythagorasBaum extends JPanel {
     public void drawTree(Graphics2D g, Point a, Point b, Point c, Point d, int depth) {
         // Punkt(0, 0) ist oben links
         // a,b,c,d sind die Punkte des jeweiligen Quadrats (beginnend von unten links im Uhrzeigersinn)
-        if ( depth == 0 ) { return; } // Ast-Ende erreicht
+        if (depth == 0) { return; } // Ast-Ende erreicht
+
         --depth;
         // Quadrat-Koordinaten bestimmen und zeichnen
         int[] xcoords = {a.x, b.x, c.x, d.x};
         int[] ycoords = {a.y, b.y, c.y, d.y};
         Polygon p = new Polygon(xcoords, ycoords, 4);
         // Farbe variieren mittels gewichteter arithmetischer Mittelung
-        double w2 = 1.0 / (depth + 1); // Gewichtung für Color2 (Blätter)
-        double w1 = 1.0 - w2;          // Gewichtung für Color1 (Stamm)
+        double w2 = 1.0 / (depth+1); // Gewichtung für Color2 (Blätter)
+        double w1 = 1.0 - w2;        // Gewichtung für Color1 (Stamm)
         g.setColor( new Color(
             (int) ( color1.getRed()   * w1 + color2.getRed()   * w2 ),
             (int) ( color1.getGreen() * w1 + color2.getGreen() * w2 ),
@@ -141,7 +142,7 @@ public class PythagorasBaum extends JPanel {
          * darstellt, die das Teilungsverhältnis bestimmt */
         double r1 = tanphi/2.0; // normiertes Längenverhältnis der beiden Katheten zueinander
         // Dreieckshöhe; r2 basiert auf dem Satz des Pythagoras und bestimmt die Höhe des Punktes e senkrecht zur Kante dc
-        double r2 = Math.sqrt( 0.5*0.5 - (0.5-r1)*(0.5-r1) ); // Satz des Pythagoras, normierte Darstellung: Hypothenuse mit Länge 1
+        double r2 = Math.sqrt( 0.5*0.5 - ( 0.5-r1 )*( 0.5-r1 )); // Satz des Pythagoras, normierte Darstellung: Hypothenuse mit Länge 1
         // Scheitelpunkt e über Kante dc
         Point e = new Point(
             (int) (d.x + r1*(c.x-d.x) + r2*(c.y-d.y) ),
@@ -150,12 +151,14 @@ public class PythagorasBaum extends JPanel {
         /* e wird durch die Vektoraddition des Startpunkts d, der horizontalen Verschiebung r1​ entlang der Kante und der
          * vertikalen Verschiebung r2​ (Höhe) senkrecht zur Kante bestimmt. Der Winkel ϕ (über r1​) und die Höhe r2​ sind
          * also untrennbar miteinander verbunden und definieren die exakte Position des Verzweigungspunkts e. */
+
         // Neues Quadrat links
         a1 = d;
         b1 = e;
         c1 = new Point(b1.x - a1.y + b1.y , b1.y - b1.x + a1.x); // b1 + (90-Grad-gedrehter Vektor von a1 nach b1)
         d1 = new Point(a1.x - a1.y + b1.y , a1.y - b1.x + a1.x); // a1 + (90-Grad-gedrehter Vektor von a1 nach b1)
         drawTree(g, a1, b1, c1, d1, depth);
+
         // Neues Quadrat rechts
         a2 = e;
         b2 = c;
